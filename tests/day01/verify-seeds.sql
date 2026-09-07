@@ -1,0 +1,13 @@
+SET NOCOUNT ON;
+IF DB_NAME() NOT LIKE 'LCAP[_]HRMS[_]Day01[_]%' THROW 51000, 'Test database required', 1;
+IF (SELECT COUNT(*) FROM dbo.__EFMigrationsHistory) <> 7 THROW 51001, 'Expected seven migrations', 1;
+IF (SELECT COUNT(*) FROM dbo.Companies) <> 1 THROW 51002, 'Company seed count incorrect', 1;
+IF (SELECT COUNT(*) FROM dbo.Branches) <> 1 THROW 51003, 'Branch seed count incorrect', 1;
+IF (SELECT COUNT(*) FROM dbo.Departments) <> 5 THROW 51004, 'Department seed count incorrect', 1;
+IF (SELECT COUNT(*) FROM dbo.Designations) <> 6 THROW 51005, 'Designation seed count incorrect', 1;
+IF (SELECT COUNT(*) FROM dbo.Shifts) <> 1 THROW 51006, 'Shift seed count incorrect', 1;
+IF (SELECT COUNT(*) FROM dbo.WorkLocations) <> 1 THROW 51007, 'Work Location seed count incorrect', 1;
+IF EXISTS (SELECT 1 FROM dbo.Companies WHERE PAN IS NOT NULL OR TAN IS NOT NULL OR GSTIN IS NOT NULL OR PFRegistrationNumber IS NOT NULL OR ESIRegistrationNumber IS NOT NULL) THROW 51008, 'Unexpected legal registration seed', 1;
+IF EXISTS (SELECT 1 FROM dbo.WorkLocations WHERE Latitude IS NOT NULL OR Longitude IS NOT NULL) THROW 51009, 'Unexpected coordinate seed', 1;
+IF EXISTS (SELECT 1 FROM dbo.Shifts WHERE ShiftCode='GENERAL' AND (StartTime <> '09:30:00' OR EndTime <> '18:30:00' OR GracePeriodMinutes <> 15)) THROW 51010, 'General shift seed mismatch', 1;
+SELECT 'PASS: 7 migrations; seed counts 1/1/5/6/1/1; legal identifiers and coordinates NULL' AS Result;

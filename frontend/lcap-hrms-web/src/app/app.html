@@ -1,0 +1,133 @@
+<div class="app-shell">
+  @if (sidebar()) {
+    <button
+      class="sidebar-backdrop"
+      aria-label="Close navigation"
+      (click)="sidebar.set(false)"
+    ></button>
+  }
+  <aside class="sidebar" [class.mobile-open]="sidebar()">
+    <a routerLink="/" class="brand" aria-label="LCAP HRMS home"
+      ><span class="brand-mark">L<span></span></span>
+      <div>LCAP<span>HUMAN RESOURCES</span></div></a
+    >
+    <div class="workspace">
+      <span class="workspace-avatar">LC</span>
+      <div>
+        <strong>{{ session.companyName() }}</strong
+        ><small>Organisation workspace</small>
+      </div>
+    </div>
+    <div class="nav-caption">WORKSPACE</div>
+    <nav class="main-nav" aria-label="Main navigation">
+      @for (item of nav; track item.label) {
+        <button disabled [title]="item.label + ' is planned for a later release'">
+          <app-icon [name]="item.icon" /><span>{{ item.label }}</span>
+        </button>
+      }
+      <a routerLink="/settings/organisation/companies" class="active" (click)="sidebar.set(false)"
+        ><app-icon name="settings" /><span>Settings</span><app-icon name="down" /></a
+      ><a routerLink="/settings/organisation/companies" class="sub-nav" (click)="sidebar.set(false)"
+        ><i></i>Organisation</a
+      >
+    </nav>
+    <div class="sidebar-bottom">
+      <span class="edition-label"><app-icon name="shield" />Enterprise workspace</span>
+      <p>Built around your people.</p>
+      <span class="version">LCAP HRMS <span>v1.0</span></span>
+    </div>
+  </aside>
+  <div class="main-shell">
+    <header class="topbar">
+      <div class="topbar-title">
+        <button
+          class="icon-button menu-toggle"
+          aria-label="Open navigation"
+          (click)="sidebar.set(!sidebar())"
+        >
+          <app-icon name="menu" /></button
+        ><span>Settings</span><span class="topbar-divider"></span
+        ><small>Organisation management</small>
+      </div>
+      <div class="topbar-tools">
+        <span class="company-label"><app-icon name="building" />{{ session.companyName() }}</span>
+        <div class="popover-anchor">
+          <button
+            class="icon-button notification-button"
+            aria-label="Notifications"
+            [attr.aria-expanded]="notifications()"
+            (click)="notifications.set(!notifications()); profile.set(false)"
+          >
+            <app-icon name="bell" />
+          </button>
+          @if (notifications()) {
+            <div class="popover notifications">
+              <strong>Notifications</strong>
+              <p>No notifications to display.</p>
+              <small>Notifications will appear here when enabled.</small>
+            </div>
+          }
+        </div>
+        <span class="topbar-divider"></span>
+        <div class="popover-anchor">
+          <button
+            class="profile-button"
+            aria-label="Profile menu"
+            [attr.aria-expanded]="profile()"
+            (click)="profile.set(!profile()); notifications.set(false)"
+          >
+            <span class="profile-avatar">AD</span
+            ><span class="profile-copy"
+              ><strong>Administrator</strong
+              ><small>{{ session.token() ? 'Token supplied' : 'Not connected' }}</small></span
+            ><app-icon name="down" />
+          </button>
+          @if (profile()) {
+            <div class="popover">
+              <strong>Workspace access</strong>
+              <p>
+                {{
+                  session.token()
+                    ? 'An access token is set for this tab.'
+                    : 'Connect to manage organisation data.'
+                }}
+              </p>
+              <button class="text-button" (click)="openConnection()">API connection</button>
+              @if (session.token()) {
+                <button class="text-button" (click)="disconnect()">Disconnect</button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </header>
+    <main><router-outlet /></main>
+  </div>
+</div>
+<dialog #connection class="confirm-dialog" aria-labelledby="connection-title">
+  <form (ngSubmit)="connect()">
+    <div class="dialog-body">
+      <span class="eyebrow">WORKSPACE ACCESS</span>
+      <h2 id="connection-title">API connection</h2>
+      <p>
+        Enter a valid bearer access token issued for this HRMS API. It stays in memory for this tab
+        and is cleared on reload.
+      </p>
+      <label for="access-token">Access token</label
+      ><input
+        id="access-token"
+        name="token"
+        type="password"
+        autocomplete="off"
+        [(ngModel)]="token"
+        required
+        placeholder="Paste access token"
+      /><small>Sign-in will be available once the identity provider is configured.</small>
+    </div>
+    <div class="dialog-footer">
+      <button class="secondary" type="button" (click)="connection.close(); token = ''">
+        Cancel</button
+      ><button class="primary" type="submit" [disabled]="!token.trim()">Connect</button>
+    </div>
+  </form>
+</dialog>

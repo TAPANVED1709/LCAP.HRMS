@@ -1,0 +1,175 @@
+using LCAP.HRMS.Domain.Shifts;
+using System.Reflection;
+using LCAP.HRMS.Domain.Branches;
+using LCAP.HRMS.Domain.Departments;
+using LCAP.HRMS.Domain.Designations;
+using LCAP.HRMS.Domain.WorkLocations;
+using LCAP.HRMS.Domain.Companies;
+using LCAP.HRMS.Application.Common.Exceptions;
+using Microsoft.Data.SqlClient;
+using LCAP.HRMS.Application.Abstractions;
+using LCAP.HRMS.Application.Abstractions.Persistence;
+using LCAP.HRMS.Domain.Common;
+using LCAP.HRMS.Infrastructure.Persistence.Configurations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+
+namespace LCAP.HRMS.Infrastructure.Persistence;
+
+public class ApplicationDbContext : DbContext, IUnitOfWork
+{
+    public DbSet<Shift> Shifts => Set<Shift>();
+    public DbSet<Company> Companies => Set<Company>();
+    public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Designation> Designations => Set<Designation>();
+    public DbSet<WorkLocation> WorkLocations => Set<WorkLocation>();
+    private readonly ICurrentUser _currentUser;
+    private readonly TimeProvider _timeProvider;
+
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options,
+        ICurrentUser currentUser, TimeProvider timeProvider) : this((DbContextOptions)options, currentUser, timeProvider) { }
+
+    protected ApplicationDbContext(DbContextOptions options, ICurrentUser currentUser, TimeProvider timeProvider)
+        : base(options)
+    {
+        _currentUser = currentUser;
+        _timeProvider = timeProvider;
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.HasDefaultSchema("dbo");
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        ApplyFoundationConventions(modelBuilder);
+        modelBuilder.Entity<Shift>().HasQueryFilter(shift => !shift.IsDeleted && !shift.Company.IsDeleted);
+        // EF Core 8 uses one combined filter: hide deleted branches and deleted parents.
+        modelBuilder.Entity<Branch>().HasQueryFilter(branch => !branch.IsDeleted && !branch.Company.IsDeleted);
+        modelBuilder.Entity<Department>().HasQueryFilter(department => !department.IsDeleted && !department.Company.IsDeleted);
+        modelBuilder.Entity<Designation>().HasQueryFilter(designation => !designation.IsDeleted && !designation.Company.IsDeleted);
+        modelBuilder.Entity<WorkLocation>().HasQueryFilter(location => !location.IsDeleted
+            && !location.Company.IsDeleted && !location.Branch.IsDeleted && !location.Branch.Company.IsDeleted);
+    }
+
+    // Call after registering entities in derived test contexts as well.
+    protected static void ApplyFoundationConventions(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes()
+            .Where(type => typeof(BaseEntity).IsAssignableFrom(type.ClrType) && type.BaseType is null).ToArray())
+        {
+            typeof(ApplicationDbContext).GetMethod(nameof(ConfigureBaseEntity), BindingFlags.NonPublic | BindingFlags.Static)!
+                .MakeGenericMethod(entityType.ClrType).Invoke(null, [modelBuilder]);
+
+            // Preserve original creator values even for detached entities attached as Modified.
+            entityType.FindProperty(nameof(BaseEntity.CreatedAt))!.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            entityType.FindProperty(nameof(BaseEntity.CreatedBy))!.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+        }
+
+        // No implicit hard-delete cascades across soft-deletable entities.
+        foreach (var foreignKey in modelBuilder.Model.GetEntityTypes().SelectMany(type => type.GetForeignKeys())
+            .Where(key => typeof(BaseEntity).IsAssignableFrom(key.DeclaringEntityType.ClrType)
+                || typeof(BaseEntity).IsAssignableFrom(key.PrincipalEntityType.ClrType)))
+            foreignKey.DeleteBehavior = DeleteBehavior.Restrict;
+    }
+
+    private static void ConfigureBaseEntity<T>(ModelBuilder modelBuilder) where T : BaseEntity =>
+        modelBuilder.ApplyConfiguration(new BaseEntityConfiguration<T>());
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyAuditChanges();
+        try { return base.SaveChanges(acceptAllChangesOnSuccess); }
+        catch (DbUpdateException exception) when (IsDuplicateShiftCode(exception))
+        { throw new ConflictException("ShiftCode is already in use within this company."); }
+        catch (DbUpdateException exception) when (IsDuplicateCompanyCode(exception))
+        { throw new ConflictException("CompanyCode is already in use."); }
+        catch (DbUpdateException exception) when (IsDuplicateBranchCode(exception))
+        { throw new ConflictException("BranchCode is already in use within this company."); }
+        catch (DbUpdateException exception) when (IsDuplicateDepartmentCode(exception))
+        { throw new ConflictException("DepartmentCode is already in use within this company."); }
+        catch (DbUpdateException exception) when (IsDuplicateDesignationCode(exception))
+        { throw new ConflictException("DesignationCode is already in use within this company."); }
+        catch (DbUpdateException exception) when (IsDuplicateLocationCode(exception))
+        { throw new ConflictException("LocationCode is already in use within this branch."); }
+    }
+
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuditChanges();
+        try { return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken); }
+        catch (DbUpdateException exception) when (IsDuplicateShiftCode(exception))
+        { throw new ConflictException("ShiftCode is already in use within this company."); }
+        catch (DbUpdateException exception) when (IsDuplicateCompanyCode(exception))
+        { throw new ConflictException("CompanyCode is already in use."); }
+        catch (DbUpdateException exception) when (IsDuplicateBranchCode(exception))
+        { throw new ConflictException("BranchCode is already in use within this company."); }
+        catch (DbUpdateException exception) when (IsDuplicateDepartmentCode(exception))
+        { throw new ConflictException("DepartmentCode is already in use within this company."); }
+        catch (DbUpdateException exception) when (IsDuplicateDesignationCode(exception))
+        { throw new ConflictException("DesignationCode is already in use within this company."); }
+        catch (DbUpdateException exception) when (IsDuplicateLocationCode(exception))
+        { throw new ConflictException("LocationCode is already in use within this branch."); }
+    }
+
+    // Enforces a 409 response even when concurrent requests pass the pre-insert check.
+    private static bool IsDuplicateCompanyCode(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 }
+        && exception.Entries.Any(entry => entry.Entity is Company);
+
+    private static bool IsDuplicateBranchCode(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 }
+        && exception.Entries.Any(entry => entry.Entity is Branch);
+
+    private static bool IsDuplicateDepartmentCode(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 }
+        && exception.Entries.Any(entry => entry.Entity is Department);
+
+    private static bool IsDuplicateDesignationCode(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 }
+        && exception.Entries.Any(entry => entry.Entity is Designation);
+
+    private static bool IsDuplicateLocationCode(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 }
+        && exception.Entries.Any(entry => entry.Entity is WorkLocation);
+
+    private static bool IsDuplicateShiftCode(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 }
+        && exception.Entries.Any(entry => entry.Entity is Shift);
+
+    private void ApplyAuditChanges()
+    {
+        ChangeTracker.DetectChanges();
+        var now = _timeProvider.GetUtcNow();
+        var userId = _currentUser.UserId;
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>().ToArray())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedAt = now;
+                entry.Entity.CreatedBy = userId;
+                entry.Entity.UpdatedAt = null;
+                entry.Entity.UpdatedBy = null;
+                entry.Entity.IsDeleted = false;
+            }
+            else if (entry.State is EntityState.Modified or EntityState.Deleted)
+            {
+                if (entry.State == EntityState.Deleted)
+                {
+                    // Only update deletion/audit columns, including for a detached deletion stub.
+                    entry.State = EntityState.Unchanged;
+                    entry.Entity.IsDeleted = true;
+                    entry.Property(entity => entity.IsDeleted).IsModified = true;
+                }
+
+                entry.Property(entity => entity.CreatedAt).IsModified = false;
+                entry.Property(entity => entity.CreatedBy).IsModified = false;
+                entry.Entity.UpdatedAt = now;
+                entry.Entity.UpdatedBy = userId;
+                entry.Property(entity => entity.UpdatedAt).IsModified = true;
+                entry.Property(entity => entity.UpdatedBy).IsModified = true;
+            }
+        }
+    }
+}

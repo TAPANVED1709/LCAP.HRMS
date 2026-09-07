@@ -1,0 +1,193 @@
+<div class="breadcrumbs">Settings <app-icon name="chevron" /> <span>Organisation</span></div>
+<section class="page-heading">
+  <div>
+    <div class="eyebrow">WORKSPACE SETTINGS</div>
+    <h1>Organisation</h1>
+    <p>The foundation of your people operations.</p>
+  </div>
+  <span class="workspace-tag"><app-icon name="shield" /> Organisation administration</span>
+</section>
+<div class="organisation-tabs" aria-label="Organisation masters">
+  <nav>
+    @for (item of masters; track item.key) {
+      <a [routerLink]="['/settings/organisation', item.key]" routerLinkActive="selected"
+        ><app-icon [name]="item.icon" />{{ item.title }}</a
+      >
+    }
+  </nav>
+</div>
+<div class="overview-grid">
+  <div class="overview-card">
+    <span class="overview-icon"><app-icon [name]="master().icon" /></span>
+    <div>
+      <span>Total {{ master().title.toLowerCase() }}</span
+      ><strong>{{ loading() || error() ? '—' : rows().length }}</strong>
+    </div>
+    <small>Organisation records</small>
+  </div>
+  <div class="overview-card">
+    <span class="overview-icon green"><app-icon name="check" /></span>
+    <div>
+      <span>Active records</span><strong>{{ loading() || error() ? '—' : active() }}</strong>
+    </div>
+    <small>Currently enabled</small>
+  </div>
+  <div class="overview-card">
+    <span class="overview-icon slate"><app-icon name="shield" /></span>
+    <div>
+      <span>Inactive records</span
+      ><strong>{{ loading() || error() ? '—' : rows().length - active() }}</strong>
+    </div>
+    <small>Retained for reference</small>
+  </div>
+</div>
+@if (notice()) {
+  <div class="alert success" role="status">
+    <app-icon name="check" /><span>{{ notice() }}</span
+    ><button class="icon-button" aria-label="Dismiss success message" (click)="notice.set('')">
+      <app-icon name="close" />
+    </button>
+  </div>
+}
+@if (actionError()) {
+  <div class="alert error" role="alert">
+    {{ actionError()
+    }}<button class="icon-button" aria-label="Dismiss error" (click)="actionError.set('')">
+      <app-icon name="close" />
+    </button>
+  </div>
+}
+<section class="table-card">
+  <div class="section-heading">
+    <div>
+      <h2>
+        {{ master().title }}
+        <span class="count-badge">{{ loading() || error() ? '—' : rows().length }}</span>
+      </h2>
+      <p>{{ master().description }}</p>
+    </div>
+    <div class="heading-actions">
+      <button
+        class="icon-button bordered"
+        aria-label="Refresh records"
+        title="Refresh records"
+        (click)="load()"
+        [disabled]="loading() || saving()"
+      >
+        <app-icon name="refresh" /></button
+      ><button class="primary" (click)="open()" [disabled]="loading() || !!error() || saving()">
+        <app-icon name="plus" />Add {{ master().singular.toLowerCase() }}
+      </button>
+    </div>
+  </div>
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite">
+      <span class="spinner"></span>Loading {{ master().title.toLowerCase() }}…
+      <div class="skeleton-row"></div>
+      <div class="skeleton-row"></div>
+      <div class="skeleton-row"></div>
+    </div>
+  } @else if (error()) {
+    <div class="error-state" role="alert">
+      <span class="error-symbol"><app-icon name="info" /></span>
+      <h3>Unable to load organisation data</h3>
+      <p>{{ error() }}</p>
+      <button class="secondary" (click)="load()">Try again</button>
+    </div>
+  } @else {
+    <app-data-table
+      [master]="master()"
+      [rows]="rows()"
+      [display]="display"
+      [busy]="saving()"
+      (edit)="open($event)"
+      (toggle)="toggle($event)"
+      (remove)="askDelete($event)"
+    />
+  }
+</section>
+<div class="page-footnote">
+  <app-icon name="info" /><span
+    >Organisation records are shared across your HRMS. Changes take effect once saved.</span
+  ><span class="footer-brand">LCAP HRMS · Administration</span>
+</div>
+<dialog
+  #editor
+  class="editor-dialog"
+  aria-labelledby="editor-title"
+  (cancel)="saving() ? $event.preventDefault() : null"
+>
+  <div class="dialog-header">
+    <div>
+      <span class="eyebrow">ORGANISATION / {{ master().title }}</span>
+      <h2 id="editor-title">
+        {{ editing() ? 'Edit' : 'Add' }} {{ master().singular.toLowerCase() }}
+      </h2>
+    </div>
+    <button
+      type="button"
+      class="icon-button"
+      aria-label="Close editor"
+      (click)="close()"
+      [disabled]="saving()"
+    >
+      <app-icon name="close" />
+    </button>
+  </div>
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <div class="dialog-body">
+      <p class="form-intro">
+        Keep your organisation details accurate. <span class="required">*</span> Required fields
+      </p>
+      @if (formError()) {
+        <div class="alert error" role="alert">{{ formError() }}</div>
+      }
+      <div class="form-grid">
+        @for (field of master().fields; track field.key) {
+          @if (form.controls[field.key]) {
+            <app-form-control
+              [class.full-width]="field.type === 'textarea'"
+              [field]="field"
+              [control]="control(field)"
+              [options]="options(field)"
+            />
+          }
+        }
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <button class="secondary" type="button" (click)="close()" [disabled]="saving()">Cancel</button
+      ><button class="primary" type="submit" [disabled]="saving()">
+        @if (saving()) {
+          <span class="spinner small-spinner"></span>
+        }
+        {{ saving() ? 'Saving…' : 'Save ' + master().singular.toLowerCase() }}
+      </button>
+    </div>
+  </form>
+</dialog>
+<dialog
+  #confirmation
+  class="confirm-dialog"
+  aria-labelledby="delete-title"
+  (cancel)="saving() ? $event.preventDefault() : null"
+>
+  <div class="dialog-body">
+    <span class="error-symbol"><app-icon name="trash" /></span>
+    <h2 id="delete-title">Delete {{ master().singular.toLowerCase() }}?</h2>
+    <p>
+      <strong>{{ deleting()?.[master().name] }}</strong> will be removed from the active directory.
+      Its audit history will be retained.
+    </p>
+    @if (formError()) {
+      <div class="alert error" role="alert">{{ formError() }}</div>
+    }
+  </div>
+  <div class="dialog-footer">
+    <button class="secondary" [disabled]="saving()" (click)="confirmation.close()">
+      Keep record</button
+    ><button class="danger" [disabled]="saving()" (click)="remove()">
+      {{ saving() ? 'Deleting…' : 'Delete record' }}
+    </button>
+  </div>
+</dialog>

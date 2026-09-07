@@ -18,8 +18,13 @@ public sealed class CompanyApiFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
 
-    public CompanyApiFactory()
+    private readonly TimeProvider? _clock;
+    private readonly LCAP.HRMS.Application.Attendance.IGeoDistanceService? _distance;
+    public Action<IServiceCollection>? CustomizeServices { get; set; }
+    public CompanyApiFactory(TimeProvider? clock = null, LCAP.HRMS.Application.Attendance.IGeoDistanceService? distance = null)
     {
+        _clock = clock;
+        _distance = distance;
         _connection.Open();
         _connection.CreateCollation("Latin1_General_100_CI_AS",
             (left, right) => string.Compare(left, right, StringComparison.OrdinalIgnoreCase));
@@ -33,6 +38,9 @@ public sealed class CompanyApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<ApplicationDbContext>();
             services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection));
+            if (_clock is not null) { services.RemoveAll<TimeProvider>(); services.AddSingleton(_clock); }
+            if (_distance is not null) { services.RemoveAll<LCAP.HRMS.Application.Attendance.IGeoDistanceService>(); services.AddSingleton(_distance); }
+            CustomizeServices?.Invoke(services);
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = "Test";

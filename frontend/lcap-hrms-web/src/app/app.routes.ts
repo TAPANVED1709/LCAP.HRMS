@@ -1,5 +1,9 @@
 import { Routes } from '@angular/router';
 export const routes: Routes = [
+  {
+    path: 'attendance',
+    loadComponent: () => import('./attendance/attendance').then((m) => m.Attendance),
+  },
   ...['employees', 'employees/new', 'employees/my-team', 'employees/:id/edit', 'employees/:id'].map(
     (path) => ({
       path,

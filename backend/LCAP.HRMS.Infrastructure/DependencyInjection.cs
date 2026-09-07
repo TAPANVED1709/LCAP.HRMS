@@ -21,6 +21,8 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(configuration.GetSection("Attendance").Get<LCAP.HRMS.Application.Attendance.AttendanceOptions>() ?? new());
+        services.AddScoped<LCAP.HRMS.Application.Attendance.IAttendanceRepository, AttendanceRepository>();
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString,
             sql => sql.EnableRetryOnFailure()));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());

@@ -1,0 +1,130 @@
+<div class="heading">
+  <div>
+    <span class="eyebrow">WORKSPACE / ATTENDANCE</span>
+    <h1>Attendance</h1>
+    <p>Mark your working day from your assigned work location.</p>
+  </div>
+  <button class="secondary" (click)="reload()" [disabled]="loading() || !!phase()">Refresh</button>
+</div>
+@if (error()) {
+  <div class="message error" role="alert">{{ error() }}</div>
+}
+@if (success()) {
+  <div class="message success" role="status">{{ success() }}</div>
+}
+@if (loading()) {
+  <p role="status">Loading attendance…</p>
+}
+@if (today(); as day) {
+  <section class="today" [attr.aria-busy]="!!phase()">
+    <span class="eyebrow">TODAY · {{ day.attendanceDate }}</span>
+    <h2>{{ state(day.record) }}</h2>
+    @if (day.record; as r) {
+      <div class="facts">
+        <div>
+          <small>Check-in</small><strong>{{ time(r.checkInTime, r.timeZoneId) }}</strong>
+        </div>
+        <div>
+          <small>Check-out</small><strong>{{ time(r.checkOutTime, r.timeZoneId) }}</strong>
+        </div>
+        <div>
+          <small>Office</small><strong>{{ r.workLocationName }}</strong>
+        </div>
+      </div>
+    }
+    <p class="muted">
+      Times shown in {{ day.timeZoneId }}. Location is requested only when you mark attendance.
+    </p>
+    @if (!day.record?.checkOutTime) {
+      <button
+        class="primary"
+        [disabled]="!!phase() || loading()"
+        (click)="mark(day.record ? 'check-out' : 'check-in')"
+      >
+        {{ phase() || (day.record ? 'Check Out' : 'Check In') }}
+      </button>
+    }
+    @if (phase()) {
+      <span role="status" class="progress">{{ phase() }}</span>
+    }
+  </section>
+}
+<section class="history">
+  <h2>{{ admin() ? 'Attendance register' : 'My attendance' }}</h2>
+  <form class="filters" (ngSubmit)="filter()">
+    <label>Date<input type="date" name="date" [(ngModel)]="date" /></label>
+    @if (admin()) {
+      <label
+        >Branch<select name="branch" [(ngModel)]="branchId">
+          <option value="">All branches</option>
+          @for (b of branches(); track b.id) {
+            <option [value]="b.id">{{ b.branchName }}</option>
+          }
+        </select></label
+      ><label
+        >Employee<select name="employee" [(ngModel)]="employeeId">
+          <option value="">All employees</option>
+          @for (e of employees(); track e.id) {
+            <option [value]="e.id">{{ e.employeeCode }} · {{ e.fullName }}</option>
+          }
+        </select></label
+      >
+    }
+    <button class="secondary" [disabled]="loading() || !!phase()">Apply filters</button>
+  </form>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Employee code</th>
+          <th>Employee name</th>
+          <th>Branch</th>
+          <th>Work location</th>
+          <th>Check-in</th>
+          <th>Check-out</th>
+          <th>Status</th>
+          <th>Geofence</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of rows(); track r.attendanceId) {
+          <tr>
+            <td>{{ r.attendanceDate }}</td>
+            <td>{{ r.employeeCode }}</td>
+            <td>{{ r.employeeName }}</td>
+            <td>{{ r.branch }}</td>
+            <td>{{ r.workLocationName }}</td>
+            <td>{{ time(r.checkInTime, r.timeZoneId) }}</td>
+            <td>{{ time(r.checkOutTime, r.timeZoneId) }}</td>
+            <td>
+              <span class="status-pill">{{ state(r) }}</span>
+            </td>
+            <td>
+              {{
+                r.withinGeofence === null ? 'Not enforced' : r.withinGeofence ? 'Inside' : 'Outside'
+              }}
+            </td>
+          </tr>
+        }
+        @if (!loading() && !rows().length) {
+          <tr>
+            <td colspan="9">No attendance records to display.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="paging">
+    <button class="secondary" (click)="page(-1)" [disabled]="skip === 0 || loading() || !!phase()">
+      Previous</button
+    ><span>Page {{ skip / take + 1 }}</span
+    ><button
+      class="secondary"
+      (click)="page(1)"
+      [disabled]="rows().length < take || loading() || !!phase()"
+    >
+      Next
+    </button>
+  </div>
+</section>

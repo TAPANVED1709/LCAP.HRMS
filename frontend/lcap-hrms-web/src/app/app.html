@@ -20,15 +20,21 @@
     </div>
     <div class="nav-caption">WORKSPACE</div>
     <nav class="main-nav" aria-label="Main navigation">
-      <a routerLink="/employees" (click)="sidebar.set(false)"
+      <a routerLink="/employees" routerLinkActive="active" (click)="sidebar.set(false)"
         ><app-icon name="people" /><span>Employees</span></a
+      >
+      <a routerLink="/attendance" routerLinkActive="active" (click)="sidebar.set(false)"
+        ><app-icon name="calendar" /><span>Attendance</span></a
       >
       @for (item of nav; track item.label) {
         <button disabled [title]="item.label + ' is planned for a later release'">
           <app-icon [name]="item.icon" /><span>{{ item.label }}</span>
         </button>
       }
-      <a routerLink="/settings/organisation/companies" class="active" (click)="sidebar.set(false)"
+      <a
+        routerLink="/settings/organisation/companies"
+        routerLinkActive="active"
+        (click)="sidebar.set(false)"
         ><app-icon name="settings" /><span>Settings</span><app-icon name="down" /></a
       ><a routerLink="/settings/organisation/companies" class="sub-nav" (click)="sidebar.set(false)"
         ><i></i>Organisation</a

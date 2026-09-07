@@ -1,11 +1,11 @@
 import { Component, ElementRef, ViewChild, inject, signal } from '@angular/core';
-import { RouterOutlet, RouterLink } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { SessionService } from './core/api.service';
 import { Icon } from './shared/icon';
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, FormsModule, Icon],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule, Icon],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -19,7 +19,6 @@ export class App {
   nav = [
     { label: 'Dashboard', icon: 'dashboard' },
 
-    { label: 'Attendance', icon: 'calendar' },
     { label: 'Leave', icon: 'calendar' },
     { label: 'Payroll', icon: 'wallet' },
     { label: 'Payslips', icon: 'file' },

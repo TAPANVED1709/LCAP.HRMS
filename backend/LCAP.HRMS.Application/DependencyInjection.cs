@@ -12,6 +12,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<Attendance.IAttendanceService, Attendance.AttendanceService>();
+        services.AddSingleton<Attendance.IGeoDistanceService, Attendance.GeoDistanceService>();
+        services.AddSingleton<Attendance.AttendanceDateResolver>();
         services.AddScoped<Employees.IEmployeeService, Employees.EmployeeService>();
         services.AddScoped<ICompanyService, CompanyService>();
         services.AddScoped<IBranchService, BranchService>();

@@ -148,3 +148,9 @@ See [Day 1 report](docs/DAY-01-REPORT.md), [Day 2 handoff](docs/DAY-02-HANDOFF.m
 Employee screens are under `/employees`, with create, edit, profile and My Team routes. Employee writes require `HRAdmin` or `SuperAdmin`. Configure verified JWT `role`, `company_id` and `employee_id` claims; non-SuperAdmin employee access fails closed when company scope is missing. HRUser reads the scoped directory; Manager reads their team; Employee reads their own profile; PayrollAdmin can read scoped sensitive details. Lists never contain statutory or bank identifiers.
 
 Review `database/scripts/EmployeeMaster.sql` before applying the migration. No employees or sensitive identifiers are seeded into production. See [Day 2 report](docs/DAY-02-REPORT.md), [Day 2 tests](tests/day02/README.md), and [Day 3 handoff](docs/DAY-03-HANDOFF.md).
+
+## Day 3 attendance
+
+Geo-fenced self attendance is available at `/attendance`; HRAdmin/SuperAdmin also receive a read-only register. See [Day 3 report](docs/DAY-03-REPORT.md), [isolated integration-test instructions](tests/day03/README.md), and [Day 4 handoff](docs/DAY-04-HANDOFF.md).
+
+Configure `Attendance` in API appsettings/environment configuration. Defaults are maximum accuracy 100m, location age 120 seconds and future skew 30 seconds. Company/branch timezone overrides use canonical GUID string keys; LCAP is configured for Asia/Kolkata. PATNA-OFFICE intentionally has no coordinates: enter actual office coordinates using Work Locations before physical geofence testing. Attendance requires signed `employee_id` and matching `company_id` claims. Production browser geolocation requires HTTPS. There is no manual attendance editing or policy/penalty evaluation in Day 3.

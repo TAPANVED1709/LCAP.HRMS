@@ -18,6 +18,7 @@ namespace LCAP.HRMS.Infrastructure.Persistence;
 
 public class ApplicationDbContext : DbContext, IUnitOfWork
 {
+    public DbSet<LCAP.HRMS.Domain.Employees.Employee> Employees => Set<LCAP.HRMS.Domain.Employees.Employee>();
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Branch> Branches => Set<Branch>();
@@ -44,6 +45,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         ApplyFoundationConventions(modelBuilder);
         modelBuilder.Entity<Shift>().HasQueryFilter(shift => !shift.IsDeleted && !shift.Company.IsDeleted);
+        modelBuilder.Entity<LCAP.HRMS.Domain.Employees.Employee>().HasQueryFilter(e => !e.IsDeleted && !e.Company.IsDeleted);
         // EF Core 8 uses one combined filter: hide deleted branches and deleted parents.
         modelBuilder.Entity<Branch>().HasQueryFilter(branch => !branch.IsDeleted && !branch.Company.IsDeleted);
         modelBuilder.Entity<Department>().HasQueryFilter(department => !department.IsDeleted && !department.Company.IsDeleted);
@@ -80,6 +82,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     {
         ApplyAuditChanges();
         try { return base.SaveChanges(acceptAllChangesOnSuccess); }
+        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 } && exception.Entries.Any(e => e.Entity is LCAP.HRMS.Domain.Employees.Employee))
+        { throw new ConflictException("EmployeeCode is already in use within this company."); }
         catch (DbUpdateException exception) when (IsDuplicateShiftCode(exception))
         { throw new ConflictException("ShiftCode is already in use within this company."); }
         catch (DbUpdateException exception) when (IsDuplicateCompanyCode(exception))
@@ -99,6 +103,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     {
         ApplyAuditChanges();
         try { return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken); }
+        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 } && exception.Entries.Any(e => e.Entity is LCAP.HRMS.Domain.Employees.Employee))
+        { throw new ConflictException("EmployeeCode is already in use within this company."); }
         catch (DbUpdateException exception) when (IsDuplicateShiftCode(exception))
         { throw new ConflictException("ShiftCode is already in use within this company."); }
         catch (DbUpdateException exception) when (IsDuplicateCompanyCode(exception))
@@ -141,6 +147,28 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     private void ApplyAuditChanges()
     {
         ChangeTracker.DetectChanges();
+        // Preserve assignments when a Day 1 master is deleted or moved after employee creation.
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>().ToArray())
+        {
+            var removing = entry.State == EntityState.Deleted ||
+                (entry.State == EntityState.Modified && entry.Property(nameof(BaseEntity.IsDeleted)).IsModified && entry.Entity.IsDeleted);
+            var moving = entry.State == EntityState.Modified && entry.Properties.Any(p =>
+                p.Metadata.Name is "CompanyId" or "BranchId" && p.IsModified && !Equals(p.OriginalValue, p.CurrentValue));
+            if (!removing && !moving) continue;
+            var id = entry.Entity.Id;
+            var query = Employees.IgnoreQueryFilters();
+            var referenced = entry.Entity switch
+            {
+                Company => query.Any(e => e.CompanyId == id),
+                Branch => query.Any(e => e.BranchId == id),
+                Department => query.Any(e => e.DepartmentId == id),
+                Designation => query.Any(e => e.DesignationId == id),
+                Shift => query.Any(e => e.ShiftId == id),
+                WorkLocation => query.Any(e => e.WorkLocationId == id),
+                _ => false
+            };
+            if (referenced) throw new ConflictException("This organisation record is assigned to employees and cannot be deleted or moved.");
+        }
         var now = _timeProvider.GetUtcNow();
         var userId = _currentUser.UserId;
         foreach (var entry in ChangeTracker.Entries<BaseEntity>().ToArray())

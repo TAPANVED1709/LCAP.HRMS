@@ -20,6 +20,9 @@
     </div>
     <div class="nav-caption">WORKSPACE</div>
     <nav class="main-nav" aria-label="Main navigation">
+      <a routerLink="/employees" (click)="sidebar.set(false)"
+        ><app-icon name="people" /><span>Employees</span></a
+      >
       @for (item of nav; track item.label) {
         <button disabled [title]="item.label + ' is planned for a later release'">
           <app-icon [name]="item.icon" /><span>{{ item.label }}</span>
@@ -46,8 +49,8 @@
           (click)="sidebar.set(!sidebar())"
         >
           <app-icon name="menu" /></button
-        ><span>Settings</span><span class="topbar-divider"></span
-        ><small>Organisation management</small>
+        ><span>LCAP HRMS</span><span class="topbar-divider"></span
+        ><small>People & organisation</small>
       </div>
       <div class="topbar-tools">
         <span class="company-label"><app-icon name="building" />{{ session.companyName() }}</span>

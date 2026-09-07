@@ -51,6 +51,15 @@ public sealed class CompanyApiFactory : WebApplicationFactory<Program>
         return client;
     }
 
+    public HttpClient CreateEmployeeClient(string role = "SuperAdmin", Guid? companyId = null, Guid? employeeId = null)
+    {
+        var client = CreateCompanyClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", role);
+        if (companyId is {} company) client.DefaultRequestHeaders.Add("X-Test-Company", company.ToString());
+        if (employeeId is {} employee) client.DefaultRequestHeaders.Add("X-Test-Employee", employee.ToString());
+        return client;
+    }
+
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
@@ -64,7 +73,10 @@ public sealed class CompanyApiFactory : WebApplicationFactory<Program>
         {
             if (Request.Headers.Authorization != "Test allowed")
                 return Task.FromResult(AuthenticateResult.NoResult());
-            var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", "api-test-user")], Scheme.Name));
+            var claims = new List<Claim> {new("sub", "api-test-user")};
+            foreach (var (header, claim) in new[] { ("X-Test-Role", ClaimTypes.Role), ("X-Test-Company", "company_id"), ("X-Test-Employee", "employee_id") })
+                if (Request.Headers.TryGetValue(header,out var value)) claims.Add(new(claim,value.ToString()));
+            var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name));
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));
         }
     }

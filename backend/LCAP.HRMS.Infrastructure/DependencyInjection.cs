@@ -25,6 +25,7 @@ public static class DependencyInjection
             sql => sql.EnableRetryOnFailure()));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped(typeof(IBaseRepository<>), typeof(GenericRepository<>));
+        services.AddScoped<LCAP.HRMS.Application.Employees.IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();

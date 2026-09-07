@@ -14,7 +14,8 @@ public sealed class MasterDataSecurityDocumentFilter : IDocumentFilter
             || path.Key.StartsWith("/api/departments", StringComparison.Ordinal)
             || path.Key.StartsWith("/api/designations", StringComparison.Ordinal)
             || path.Key.StartsWith("/api/shifts", StringComparison.Ordinal)
-            || path.Key.StartsWith("/api/work-locations", StringComparison.Ordinal)))
+            || path.Key.StartsWith("/api/work-locations", StringComparison.Ordinal)
+            || path.Key.StartsWith("/api/employees", StringComparison.Ordinal)))
         foreach (var operation in path.Value.Operations!.Values)
             operation.Security = [new OpenApiSecurityRequirement
             {

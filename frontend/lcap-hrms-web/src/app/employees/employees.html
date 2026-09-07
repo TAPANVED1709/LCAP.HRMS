@@ -1,0 +1,221 @@
+<div class="breadcrumbs">
+  <a routerLink="/employees">Employees</a> /
+  {{
+    mode() === 'team'
+      ? 'My team'
+      : mode() === 'new'
+        ? 'New employee'
+        : mode() === 'edit'
+          ? 'Edit employee'
+          : mode() === 'view'
+            ? 'Profile'
+            : 'Directory'
+  }}
+</div>
+<section class="page-heading">
+  <div>
+    <div class="eyebrow">PEOPLE & ORGANISATION</div>
+    <h1>
+      {{
+        mode() === 'team'
+          ? 'My team'
+          : mode() === 'new'
+            ? 'Add employee'
+            : mode() === 'edit'
+              ? 'Edit employee'
+              : mode() === 'view'
+                ? (detail()?.['fullName'] ?? 'Employee profile')
+                : 'Employees'
+      }}
+    </h1>
+    <p>Employee records and reporting relationships.</p>
+  </div>
+  <div class="employee-actions">
+    <a routerLink="/employees">Directory</a><a routerLink="/employees/my-team">My team</a>
+    @if (canWrite() && mode() === 'list') {
+      <a class="button primary" routerLink="/employees/new">Add employee</a>
+    }
+  </div>
+</section>
+@if (notice()) {
+  <div class="alert success" role="status">{{ notice() }}</div>
+}
+@if (error()) {
+  <div class="alert error" role="alert">
+    {{ error() }}
+    @if (loadFailed()) {
+      <button type="button" (click)="load()">Retry loading</button>
+    }
+  </div>
+}
+@if (loading()) {
+  <div class="table-card loading-state" role="status">Loading employee data…</div>
+} @else if (mode() === 'new' || mode() === 'edit') {
+  @if (canWrite()) {
+    <form [formGroup]="form" (ngSubmit)="save()" autocomplete="off">
+      <fieldset [disabled]="saving()">
+        <nav class="employee-sections" aria-label="Form sections">
+          @for (section of sections; track section) {
+            <button type="button" (click)="scrollTo(section)">{{ section }}</button>
+          }
+        </nav>
+        @for (section of sections; track section) {
+          <section class="table-card employee-section" [id]="'section-' + section">
+            <h2>{{ section }}</h2>
+            <div class="employee-grid">
+              @for (f of sectionFields(section); track f.key) {
+                <div>
+                  <app-form-control [field]="f" [control]="control(f)" [options]="options(f)" />
+                </div>
+              }
+            </div>
+          </section>
+        }
+        <div class="employee-actions">
+          <a routerLink="/employees">Cancel</a
+          ><button type="submit" class="button primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save employee' }}
+          </button>
+        </div>
+      </fieldset>
+    </form>
+  }
+} @else if (mode() === 'view') {
+  @if (detail(); as record) {
+    <section class="table-card employee-section">
+      <div class="employee-actions">
+        <strong>{{ record['employeeCode'] }}</strong
+        ><span>{{ record['designation'] }} · {{ record['department'] }}</span
+        ><span class="status-pill">{{ statusName(record['employeeStatus']) }}</span>
+      </div>
+      @if (canWrite()) {
+        <div class="employee-actions">
+          <a [routerLink]="['/employees', id(), 'edit']">Edit employee</a
+          ><button (click)="toggle()" [disabled]="saving()">
+            {{ record['isActive'] ? 'Deactivate' : 'Activate' }}</button
+          ><button (click)="remove()" [disabled]="saving()">Delete employee</button>
+        </div>
+      }
+    </section>
+    @if (record['canViewSensitive']) {
+      <button type="button" (click)="reveal.set(!reveal())">
+        {{ reveal() ? 'Mask sensitive fields' : 'Reveal sensitive fields' }}
+      </button>
+    } @else {
+      <p>Statutory and bank details require additional permission.</p>
+    }
+    @for (section of sections; track section) {
+      <section class="table-card employee-section">
+        <h2>{{ section }}</h2>
+        <dl class="employee-grid">
+          @for (f of sectionFields(section); track f.key) {
+            <div>
+              <dt>{{ f.label }}</dt>
+              <dd>{{ display(f) }}</dd>
+            </div>
+          }
+        </dl>
+      </section>
+    }
+    <section class="table-card employee-section">
+      <h2>Reporting chain</h2>
+      @for (manager of chain(); track manager['id']) {
+        <p>{{ manager['fullName'] }} · {{ manager['employeeCode'] }}</p>
+      } @empty {
+        <p>No reporting manager assigned.</p>
+      }
+      <h2>Audit summary</h2>
+      <p>Created {{ record['createdAt'] }} · {{ record['createdBy'] ?? 'System' }}</p>
+      <p>
+        Updated {{ record['updatedAt'] ?? 'Not yet updated' }} · {{ record['updatedBy'] ?? '—' }}
+      </p>
+    </section>
+  }
+} @else {
+  <section class="table-card">
+    <form class="table-toolbar" (ngSubmit)="filter()">
+      @if (mode() === 'list') {
+        <input
+          aria-label="Search employees"
+          name="search"
+          [(ngModel)]="search"
+          placeholder="Search name or code"
+          maxlength="200"
+        />
+        <select aria-label="Employee status filter" name="status" [(ngModel)]="status">
+          <option value="">All statuses</option>
+          @for (s of statuses; track s.value) {
+            <option [value]="s.value">{{ s.label }}</option>
+          }
+        </select>
+        <select aria-label="Department filter" name="department" [(ngModel)]="department">
+          <option value="">All departments</option>
+          @for (d of lookups()['departmentId'] ?? []; track d['id']) {
+            <option [value]="d['id']">{{ d['departmentName'] }}</option>
+          }
+        </select>
+        <select aria-label="Branch filter" name="branch" [(ngModel)]="branch">
+          <option value="">All branches</option>
+          @for (b of lookups()['branchId'] ?? []; track b['id']) {
+            <option [value]="b['id']">{{ b['branchName'] }}</option>
+          }
+        </select>
+      }
+      <button type="submit">{{ mode() === 'team' ? 'Refresh' : 'Apply filters' }}</button>
+    </form>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee code</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Designation</th>
+            <th>Branch</th>
+            <th>Reporting manager</th>
+            <th>Status</th>
+            <th>Joining date</th>
+            @if (mode() === 'team') {
+              <th>Attendance</th>
+            }
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row['id']) {
+            <tr>
+              <td>{{ row['employeeCode'] }}</td>
+              <td>{{ row['fullName'] }}</td>
+              <td>{{ row['department'] }}</td>
+              <td>{{ row['designation'] }}</td>
+              <td>{{ row['branch'] }}</td>
+              <td>{{ row['reportingManagerName'] ?? '—' }}</td>
+              <td>{{ statusName(row['employeeStatus']) }}</td>
+              <td>{{ row['dateOfJoining'] }}</td>
+              @if (mode() === 'team') {
+                <td>Not available yet</td>
+              }
+              <td>
+                <a [routerLink]="['/employees', row['id']]">View</a>
+                @if (canWrite()) {
+                  · <a [routerLink]="['/employees', row['id'], 'edit']">Edit</a>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="10">
+                {{ error() ? 'Employee records could not be loaded.' : 'No employees found.' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="table-toolbar">
+      <button (click)="next(-1)" [disabled]="page() === 0">Previous</button
+      ><span>Page {{ page() + 1 }}</span
+      ><button (click)="next(1)" [disabled]="!hasNext()">Next</button>
+    </div>
+  </section>
+}

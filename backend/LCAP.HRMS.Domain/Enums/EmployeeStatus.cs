@@ -7,5 +7,8 @@ public enum EmployeeStatus
     Active = 1,
     Inactive = 2,
     OnLeave = 3,
-    Terminated = 4
+    Terminated = 4,
+    OnNotice = 5,
+    Exited = 6,
+    Suspended = 7
 }

@@ -142,3 +142,9 @@ Shift endpoints are available at /api/shifts and /api/companies/{companyId}/shif
 ## Day 1 integration
 
 See [Day 1 report](docs/DAY-01-REPORT.md), [Day 2 handoff](docs/DAY-02-HANDOFF.md), and [repeatable integration checks](tests/day01/README.md).
+
+## Day 2 Employee Master
+
+Employee screens are under `/employees`, with create, edit, profile and My Team routes. Employee writes require `HRAdmin` or `SuperAdmin`. Configure verified JWT `role`, `company_id` and `employee_id` claims; non-SuperAdmin employee access fails closed when company scope is missing. HRUser reads the scoped directory; Manager reads their team; Employee reads their own profile; PayrollAdmin can read scoped sensitive details. Lists never contain statutory or bank identifiers.
+
+Review `database/scripts/EmployeeMaster.sql` before applying the migration. No employees or sensitive identifiers are seeded into production. See [Day 2 report](docs/DAY-02-REPORT.md), [Day 2 tests](tests/day02/README.md), and [Day 3 handoff](docs/DAY-03-HANDOFF.md).

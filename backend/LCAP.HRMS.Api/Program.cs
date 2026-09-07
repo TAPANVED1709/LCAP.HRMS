@@ -13,6 +13,7 @@ using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<LCAP.HRMS.Application.Employees.IEmployeeAccess, EmployeeAccess>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
@@ -48,6 +49,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     options.Audience = builder.Configuration["Jwt:Audience"];
     options.RequireHttpsMetadata = true;
     options.MapInboundClaims = false;
+    options.TokenValidationParameters.RoleClaimType = "role";
     options.TokenValidationParameters.ValidateIssuer = true;
     options.TokenValidationParameters.ValidateAudience = true;
     options.TokenValidationParameters.ValidateLifetime = true;

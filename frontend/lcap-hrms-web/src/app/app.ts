@@ -18,7 +18,7 @@ export class App {
   @ViewChild('connection') connection!: ElementRef<HTMLDialogElement>;
   nav = [
     { label: 'Dashboard', icon: 'dashboard' },
-    { label: 'Employees', icon: 'people' },
+
     { label: 'Attendance', icon: 'calendar' },
     { label: 'Leave', icon: 'calendar' },
     { label: 'Payroll', icon: 'wallet' },

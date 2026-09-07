@@ -17,12 +17,13 @@ public sealed class GlobalExceptionHandlingMiddleware(RequestDelegate next,
         {
             context.Abort();
         }
-        catch (Exception exception) when (exception is NotFoundException or ConflictException or ValidationException)
+        catch (Exception exception) when (exception is NotFoundException or ConflictException or ValidationException or ForbiddenException)
         {
             if (context.Response.HasStarted) throw;
             context.Response.Clear();
             context.Response.StatusCode = exception switch
             {
+                ForbiddenException => StatusCodes.Status403Forbidden,
                 NotFoundException => StatusCodes.Status404NotFound,
                 ConflictException => StatusCodes.Status409Conflict,
                 _ => StatusCodes.Status400BadRequest
@@ -32,8 +33,8 @@ public sealed class GlobalExceptionHandlingMiddleware(RequestDelegate next,
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Unhandled exception for {Method} {Path}. TraceId: {TraceId}",
-                context.Request.Method, context.Request.Path, context.TraceIdentifier);
+            logger.LogError("Unhandled exception for {Method} {Path}. TraceId: {TraceId}. Type: {ExceptionType}",
+                context.Request.Method, context.Request.Path, context.TraceIdentifier, exception.GetType().Name);
             if (context.Response.HasStarted)
                 throw;
 

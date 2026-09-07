@@ -6,5 +6,9 @@ public enum EmploymentType
     FullTime = 1,
     PartTime = 2,
     Contract = 3,
-    Intern = 4
+    Intern = 4,
+    Permanent = 5,
+    Probation = 6,
+    Consultant = 7,
+    Temporary = 8
 }

@@ -1,3 +1,9 @@
+@if (admin()) {
+  <nav class="filters">
+    <a routerLink="/attendance/policies">Attendance policies</a
+    ><a routerLink="/attendance/penalties">Penalty events</a>
+  </nav>
+}
 <div class="heading">
   <div>
     <span class="eyebrow">WORKSPACE / ATTENDANCE</span>
@@ -32,6 +38,29 @@
         </div>
       </div>
     }
+    @if (day.record?.evaluation; as e) {
+      <div class="evaluation">
+        <h3>Attendance: {{ result(e) }}</h3>
+        @if (e.isEvaluated) {
+          <p>Grace period: {{ e.gracePeriodMinutes }} minutes</p>
+          @if (e.isLate) {
+            <p>Late by: {{ e.lateMinutes }} minutes</p>
+          }
+          <p>Late sequence: {{ sequence(e) }}</p>
+          @if (e.penaltyTriggered) {
+            <p class="message success" role="status">{{ notice(e) }}</p>
+          }
+        } @else {
+          <p>Attendance policy evaluation is unavailable for this record. Contact HR if needed.</p>
+        }
+      </div>
+    }
+    @if (summary(); as current) {
+      <p>Current late sequence: {{ current.currentLateSequence }} of {{ current.threshold }}</p>
+      @if (current.nextLateTriggersPenalty) {
+        <p class="message success" role="status">Your next qualifying late attendance may trigger a payroll-impact event under the configured attendance policy.</p>
+      }
+    }
     <p class="muted">
       Times shown in {{ day.timeZoneId }}. Location is requested only when you mark attendance.
     </p>
@@ -54,6 +83,13 @@
   <form class="filters" (ngSubmit)="filter()">
     <label>Date<input type="date" name="date" [(ngModel)]="date" /></label>
     @if (admin()) {
+      <label>From date<input type="date" name="fromDate" [(ngModel)]="fromDate" /></label
+      ><label>To date<input type="date" name="toDate" [(ngModel)]="toDate" /></label
+      ><label><input type="checkbox" name="lateOnly" [(ngModel)]="lateOnly" />Late only</label
+      ><label
+        ><input type="checkbox" name="penaltyOnly" [(ngModel)]="penaltyOnly" />Penalty-event
+        only</label
+      >
       <label
         >Branch<select name="branch" [(ngModel)]="branchId">
           <option value="">All branches</option>
@@ -83,7 +119,12 @@
           <th>Work location</th>
           <th>Check-in</th>
           <th>Check-out</th>
+          <th>Shift</th>
           <th>Status</th>
+          <th>Attendance result</th>
+          <th>Late minutes</th>
+          <th>Late sequence</th>
+          <th>Penalty event</th>
           <th>Geofence</th>
         </tr>
       </thead>
@@ -97,9 +138,14 @@
             <td>{{ r.workLocationName }}</td>
             <td>{{ time(r.checkInTime, r.timeZoneId) }}</td>
             <td>{{ time(r.checkOutTime, r.timeZoneId) }}</td>
+            <td>{{ r.shiftName }}</td>
             <td>
               <span class="status-pill">{{ state(r) }}</span>
             </td>
+            <td>{{ result(r.evaluation) }}</td>
+            <td>{{ r.evaluation?.isEvaluated ? r.evaluation?.lateMinutes : '—' }}</td>
+            <td>{{ r.evaluation?.isEvaluated ? sequence(r.evaluation!) : '—' }}</td>
+            <td>{{ r.evaluation?.penaltyTriggered ? 'Generated' : '—' }}</td>
             <td>
               {{
                 r.withinGeofence === null ? 'Not enforced' : r.withinGeofence ? 'Inside' : 'Outside'
@@ -109,7 +155,7 @@
         }
         @if (!loading() && !rows().length) {
           <tr>
-            <td colspan="9">No attendance records to display.</td>
+            <td colspan="14">No attendance records to display.</td>
           </tr>
         }
       </tbody>

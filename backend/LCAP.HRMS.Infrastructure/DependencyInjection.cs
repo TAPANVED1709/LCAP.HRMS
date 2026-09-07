@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddScoped<LCAP.HRMS.Application.Attendance.IAttendanceRepository, AttendanceRepository>();
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString,
             sql => sql.EnableRetryOnFailure()));
+        services.AddScoped<LCAP.HRMS.Application.AttendancePolicies.IAttendancePolicyRepository, AttendancePolicyRepository>();
+        services.AddScoped<LCAP.HRMS.Application.AttendancePolicies.IAttendanceEvaluationRepository, AttendanceEvaluationRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped(typeof(IBaseRepository<>), typeof(GenericRepository<>));
         services.AddScoped<LCAP.HRMS.Application.Employees.IEmployeeRepository, EmployeeRepository>();

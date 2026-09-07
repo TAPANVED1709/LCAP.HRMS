@@ -45,6 +45,6 @@ public sealed class AttendanceController(IAttendanceService service) : Controlle
     /// <summary>HRAdmin/SuperAdmin read-only attendance search; HRAdmin is scoped to company_id.</summary>
     [HttpGet, Authorize(Roles = "HRAdmin,SuperAdmin")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<AttendanceResponse>>), 200)]
-    public async Task<IActionResult> List(DateOnly? date, DateOnly? fromDate, DateOnly? toDate, Guid? employeeId, Guid? branchId, AttendanceStatus? status, int skip = 0, int take = 100, CancellationToken cancellationToken = default) =>
-        Ok(ApiResponse<IReadOnlyList<AttendanceResponse>>.Ok(await service.ListAsync(new(date, fromDate, toDate, employeeId, branchId, status, skip, take), cancellationToken), HttpContext.TraceIdentifier));
+    public async Task<IActionResult> List(DateOnly? date, DateOnly? fromDate, DateOnly? toDate, Guid? employeeId, Guid? branchId, AttendanceStatus? status, int skip = 0, int take = 100, bool lateOnly = false, bool penaltyOnly = false, CancellationToken cancellationToken = default) =>
+        Ok(ApiResponse<IReadOnlyList<AttendanceResponse>>.Ok(await service.ListAsync(new(date, fromDate, toDate, employeeId, branchId, status, skip, take, LateOnly: lateOnly, PenaltyOnly: penaltyOnly), cancellationToken), HttpContext.TraceIdentifier));
 }

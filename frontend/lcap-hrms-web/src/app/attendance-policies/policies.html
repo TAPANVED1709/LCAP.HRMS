@@ -1,0 +1,137 @@
+<nav class="section-nav">
+  <a routerLink="/attendance">Attendance</a
+  ><a routerLink="/attendance/policies" aria-current="page">Policies</a
+  ><a routerLink="/attendance/penalties">Penalty events</a>
+</nav>
+<div class="heading">
+  <div>
+    <span class="eyebrow">ATTENDANCE / CONFIGURATION</span>
+    <h1>Attendance policies</h1>
+    <p>Define grace periods and review events. No salary deductions are calculated.</p>
+  </div>
+  @if (allowed()) {
+    <button class="primary" (click)="open()" [disabled]="loading() || saving()">Add policy</button>
+  }
+</div>
+@if (!allowed()) {
+  <div class="message error" role="alert">
+    HR administrator access is required to manage attendance policies.
+  </div>
+}
+@if (error()) {
+  <div class="message error" role="alert">{{ error() }}</div>
+}
+@if (success()) {
+  <div class="message success" role="status">{{ success() }}</div>
+}
+@if (loading()) {
+  <p role="status">Loading policies…</p>
+}
+@if (editing()) {
+  <section class="panel">
+    <h2>{{ readOnly ? 'View policy' : id ? 'Edit policy' : 'Add policy' }}</h2>
+    <form (ngSubmit)="save()">
+      @for (section of sections; track section) {
+        <fieldset>
+          <legend>{{ section }}</legend>
+          <div class="form-grid">
+            @for (field of fields; track field.key) {
+              @if (
+                field.section === section &&
+                (field.key !== 'penaltyValue' || +form.controls['penaltyType'].value >= 3)
+              ) {
+                <app-form-control
+                  [field]="field"
+                  [control]="form.controls[field.key]"
+                  [options]="field.key === 'companyId' ? companies() : options[field.key] || []"
+                />
+              }
+            }
+          </div>
+        </fieldset>
+      }
+      <p class="muted">
+        Next qualifying late triggers after the threshold: with a threshold of 3, the fourth late
+        creates an event. After penalty preserves the count on punctual days and resets after an
+        event. At threshold triggers on the threshold occurrence. Manual review generates no
+        automatic event.
+      </p>
+      <div class="actions">
+        <button type="button" class="secondary" (click)="editing.set(false)" [disabled]="saving()">
+          Close
+        </button>
+        @if (!readOnly) {
+          <button class="primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save policy' }}
+          </button>
+        }
+      </div>
+    </form>
+  </section>
+}
+@if (allowed()) {
+  <section class="panel">
+    <div class="filters">
+      <label
+        >Search policies<input
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+          placeholder="Code or name" /></label
+      ><button class="secondary" (click)="load()" [disabled]="loading() || saving()">
+        Refresh
+      </button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Policy code</th>
+            <th>Policy name</th>
+            <th>Grace</th>
+            <th>Late threshold</th>
+            <th>Penalty trigger</th>
+            <th>Penalty type</th>
+            <th>Reset mode</th>
+            <th>Effective from</th>
+            <th>Effective to</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of visible(); track r['id']) {
+            <tr>
+              <td>{{ r['policyCode'] }}</td>
+              <td>
+                {{ r['policyName'] }}
+                @if (r['isDefault']) {
+                  <small>Company default</small>
+                }
+              </td>
+              <td>{{ r['gracePeriodMinutes'] }} min</td>
+              <td>{{ r['lateRuleEnabled'] ? r['consecutiveLateThreshold'] : 'Disabled' }}</td>
+              <td>{{ triggerNames[r['penaltyTriggerMode']] }}</td>
+              <td>{{ penaltyNames[r['penaltyType']] }}</td>
+              <td>{{ resetNames[r['resetMode']] }}</td>
+              <td>{{ r['effectiveFrom'] }}</td>
+              <td>{{ r['effectiveTo'] || 'Open-ended' }}</td>
+              <td>{{ r['isActive'] ? 'Active' : 'Inactive' }}</td>
+              <td class="row-actions">
+                <button class="text-button" (click)="open(r, true)">View</button
+                ><button class="text-button" (click)="open(r)" [disabled]="saving()">Edit</button
+                ><button class="text-button" (click)="toggle(r)" [disabled]="saving()">
+                  {{ r['isActive'] ? 'Deactivate' : 'Activate' }}
+                </button>
+              </td>
+            </tr>
+          }
+          @if (!loading() && !visible().length) {
+            <tr>
+              <td colspan="11">No policies to display.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}

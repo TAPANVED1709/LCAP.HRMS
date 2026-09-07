@@ -1,3 +1,4 @@
+using LCAP.HRMS.Domain.AttendancePolicies;
 using LCAP.HRMS.Domain.Shifts;
 using System.Reflection;
 using LCAP.HRMS.Domain.Branches;
@@ -20,6 +21,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 {
     public DbSet<LCAP.HRMS.Domain.Employees.Employee> Employees => Set<LCAP.HRMS.Domain.Employees.Employee>();
     public DbSet<LCAP.HRMS.Domain.Attendance.AttendanceRecord> AttendanceRecords => Set<LCAP.HRMS.Domain.Attendance.AttendanceRecord>();
+    public DbSet<AttendancePolicy> AttendancePolicies => Set<AttendancePolicy>();
+    public DbSet<AttendanceEvaluation> AttendanceEvaluations => Set<AttendanceEvaluation>();
+    public DbSet<AttendancePenaltyEvent> AttendancePenaltyEvents => Set<AttendancePenaltyEvent>();
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Branch> Branches => Set<Branch>();
@@ -87,6 +91,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         { throw new ConflictException("EmployeeCode is already in use within this company."); }
         catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 } && exception.Entries.Any(e => e.Entity is LCAP.HRMS.Domain.Attendance.AttendanceRecord))
         { throw new ConflictException("Attendance already exists or has already been checked in."); }
+        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 } && exception.Entries.Any(e => e.Entity is AttendancePolicy))
+        { throw new ConflictException("PolicyCode is already in use within this company."); }
         catch (DbUpdateException exception) when (IsDuplicateShiftCode(exception))
         { throw new ConflictException("ShiftCode is already in use within this company."); }
         catch (DbUpdateException exception) when (IsDuplicateCompanyCode(exception))
@@ -110,6 +116,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         { throw new ConflictException("EmployeeCode is already in use within this company."); }
         catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 } && exception.Entries.Any(e => e.Entity is LCAP.HRMS.Domain.Attendance.AttendanceRecord))
         { throw new ConflictException("Attendance already exists or has already been checked in."); }
+        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 } && exception.Entries.Any(e => e.Entity is AttendancePolicy))
+        { throw new ConflictException("PolicyCode is already in use within this company."); }
         catch (DbUpdateException exception) when (IsDuplicateShiftCode(exception))
         { throw new ConflictException("ShiftCode is already in use within this company."); }
         catch (DbUpdateException exception) when (IsDuplicateCompanyCode(exception))
@@ -152,11 +160,13 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     private void ApplyAuditChanges()
     {
         ChangeTracker.DetectChanges();
+        if (ChangeTracker.Entries().Any(e => e.Entity is AttendanceEvaluation or AttendancePenaltyEvent && e.State is EntityState.Modified or EntityState.Deleted))
+            throw new ConflictException("Attendance evaluation and penalty history cannot be changed.");
         foreach (var employee in ChangeTracker.Entries<LCAP.HRMS.Domain.Employees.Employee>()
             .Where(e => e.State == EntityState.Modified && e.Properties.Any(p =>
-                p.Metadata.Name is "WorkLocationId" or "ShiftId" && p.IsModified && !Equals(p.OriginalValue,p.CurrentValue))))
+                p.Metadata.Name is "WorkLocationId" or "ShiftId" && p.IsModified && !Equals(p.OriginalValue, p.CurrentValue))))
         {
-            if (AttendanceRecords.IgnoreQueryFilters().Any(r=>r.EmployeeId==employee.Entity.Id&&!r.IsDeleted&&r.CheckOutTime==null))
+            if (AttendanceRecords.IgnoreQueryFilters().Any(r => r.EmployeeId == employee.Entity.Id && !r.IsDeleted && r.CheckOutTime == null))
                 throw new ConflictException("Complete open attendance before changing the work location or shift.");
         }
         // Preserve assignments when a Day 1 master is deleted or moved after employee creation.
@@ -182,9 +192,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             var attendance = AttendanceRecords.IgnoreQueryFilters();
             referenced |= entry.Entity switch
             {
-                Company => attendance.Any(r=>r.CompanyId==id),
-                Shift => attendance.Any(r=>r.ShiftId==id),
-                WorkLocation => attendance.Any(r=>r.WorkLocationId==id),
+                Company => attendance.Any(r => r.CompanyId == id),
+                Shift => attendance.Any(r => r.ShiftId == id),
+                WorkLocation => attendance.Any(r => r.WorkLocationId == id),
                 _ => false
             };
             if (referenced) throw new ConflictException("This organisation record has employee assignments or attendance history and cannot be deleted or moved.");

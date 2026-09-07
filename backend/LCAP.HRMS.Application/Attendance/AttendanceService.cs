@@ -9,7 +9,7 @@ namespace LCAP.HRMS.Application.Attendance;
 
 public sealed class AttendanceService(IAttendanceRepository repository, IUnitOfWork unitOfWork, IEmployeeAccess access,
     IGeoDistanceService distance, AttendanceOptions options, AttendanceDateResolver dates, TimeProvider time,
-    ILogger<AttendanceService> logger) : IAttendanceService
+    ILogger<AttendanceService> logger, LCAP.HRMS.Application.AttendancePolicies.IAttendanceEvaluationService evaluation) : IAttendanceService
 {
     private Guid SelfId() => access.EmployeeId ?? throw new ForbiddenException();
     private async Task<AttendanceEmployee> Self(CancellationToken ct, bool writing = false)
@@ -85,7 +85,7 @@ public sealed class AttendanceService(IAttendanceRepository repository, IUnitOfW
             DeviceIdentifier = r.DeviceIdentifier?.Trim(),
             UserAgent = userAgent is null ? null : userAgent[..Math.Min(512, userAgent.Length)]
         };
-        await repository.AddAsync(record, ct); await unitOfWork.SaveChangesAsync(ct); return record.Id;
+        await repository.AddAsync(record, ct); await unitOfWork.SaveChangesAsync(ct); await evaluation.EvaluateAsync(record.Id, ct); return record.Id;
     }, ct);
     public Task<AttendanceResponse> CheckOutAsync(AttendanceCheckOutRequest r, CancellationToken ct) => Write("CheckOut", async () =>
     {

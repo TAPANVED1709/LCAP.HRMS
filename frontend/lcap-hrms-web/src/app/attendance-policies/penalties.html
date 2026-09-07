@@ -1,0 +1,74 @@
+<nav class="section-nav">
+  <a routerLink="/attendance">Attendance</a><a routerLink="/attendance/policies">Policies</a
+  ><a routerLink="/attendance/penalties" aria-current="page">Penalty events</a>
+</nav>
+<div class="heading">
+  <div>
+    <span class="eyebrow">ATTENDANCE / REVIEW</span>
+    <h1>Attendance penalty events</h1>
+    <p>Pending events for future payroll review. No salary deduction has been calculated.</p>
+  </div>
+</div>
+@if (!allowed()) {
+  <div role="alert" class="message error">HR administrator access is required.</div>
+}
+@if (error()) {
+  <div role="alert" class="message error">{{ error() }}</div>
+}
+@if (loading()) {
+  <p role="status">Loading penalty events…</p>
+}
+@if (allowed()) {
+  <section class="panel">
+    <form class="filters" (ngSubmit)="filter()">
+      <label>From date<input type="date" name="from" [(ngModel)]="fromDate" /></label
+      ><label>To date<input type="date" name="to" [(ngModel)]="toDate" /></label
+      ><button class="secondary" [disabled]="loading()">Apply filters</button>
+    </form>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Attendance date</th>
+            <th>Late minutes</th>
+            <th>Late sequence</th>
+            <th>Penalty type</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Generated at (UTC)</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows(); track r['id']) {
+            <tr>
+              <td>{{ r['employeeCode'] }} · {{ r['employeeName'] }}</td>
+              <td>{{ r['penaltyDate'] }}</td>
+              <td>{{ r['lateMinutes'] }}</td>
+              <td>{{ r['consecutiveLateCount'] }}</td>
+              <td>{{ names[r['penaltyType']] }}</td>
+              <td>Qualifying late occurrence</td>
+              <td>
+                {{ r['status'] === 1 ? 'Pending' : r['status'] === 2 ? 'Consumed' : 'Cancelled' }}
+              </td>
+              <td>{{ r['generatedAt'] }}</td>
+            </tr>
+          }
+          @if (!loading() && !rows().length) {
+            <tr>
+              <td colspan="8">No penalty events to display.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="paging">
+      <button class="secondary" (click)="page(-1)" [disabled]="skip === 0 || loading()">
+        Previous</button
+      ><span>Page {{ skip / 50 + 1 }}</span
+      ><button class="secondary" (click)="page(1)" [disabled]="rows().length < 50 || loading()">
+        Next
+      </button>
+    </div>
+  </section>
+}

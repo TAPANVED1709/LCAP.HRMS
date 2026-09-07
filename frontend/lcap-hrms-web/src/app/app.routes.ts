@@ -1,6 +1,14 @@
 import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
+    path: 'attendance/policies',
+    loadComponent: () => import('./attendance-policies/policies').then((m) => m.Policies),
+  },
+  {
+    path: 'attendance/penalties',
+    loadComponent: () => import('./attendance-policies/penalties').then((m) => m.Penalties),
+  },
+  {
     path: 'attendance',
     loadComponent: () => import('./attendance/attendance').then((m) => m.Attendance),
   },

@@ -1,4 +1,7 @@
+import type { Evaluation } from '../attendance-policies/policy-model';
 export interface AttendanceRow {
+  evaluation?: Evaluation | null;
+  shiftName?: string;
   attendanceId: string;
   employeeId: string;
   employeeCode: string;
@@ -21,9 +24,7 @@ export interface Today {
 export function attendanceState(row: AttendanceRow | null | undefined) {
   return !row ? 'Not Checked In' : row.checkOutTime ? 'Completed' : 'Checked In';
 }
-export function locate(
-  geo: Geolocation | undefined,
-): Promise<{
+export function locate(geo: Geolocation | undefined): Promise<{
   latitude: number;
   longitude: number;
   accuracyMeters: number;

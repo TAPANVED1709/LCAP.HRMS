@@ -19,6 +19,8 @@ public sealed class AttendanceCheckOutRequest : AttendancePositionRequest;
 
 public sealed class AttendanceResponse
 {
+    public LCAP.HRMS.Application.AttendancePolicies.EvaluationResponse? Evaluation { get; set; }
+    public string ShiftName { get; set; } = "";
     public Guid AttendanceId { get; set; }
     public Guid EmployeeId { get; set; }
     public string EmployeeCode { get; set; } = "";
@@ -35,7 +37,7 @@ public sealed class AttendanceResponse
 }
 public sealed record AttendanceTodayResponse(DateOnly AttendanceDate, string TimeZoneId, AttendanceResponse? Record);
 public sealed record AttendanceQuery(DateOnly? Date = null, DateOnly? FromDate = null, DateOnly? ToDate = null,
-    Guid? EmployeeId = null, Guid? BranchId = null, AttendanceStatus? Status = null, int Skip = 0, int Take = 100, Guid? CompanyId = null);
+    Guid? EmployeeId = null, Guid? BranchId = null, AttendanceStatus? Status = null, int Skip = 0, int Take = 100, Guid? CompanyId = null, bool LateOnly = false, bool PenaltyOnly = false);
 
 // Attendance queries deliberately avoid loading statutory, bank and contact details.
 public sealed class AttendanceEmployee

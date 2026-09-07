@@ -37,6 +37,7 @@ public sealed class AttendanceRepository(ApplicationDbContext context) : IAttend
     private static readonly Expression<Func<AttendanceRecord, AttendanceResponse>> Projection = r => new AttendanceResponse
     {
         AttendanceId = r.Id,
+        ShiftName = r.Shift.ShiftName,
         EmployeeId = r.EmployeeId,
         EmployeeCode = r.Employee.EmployeeCode,
         EmployeeName = r.Employee.FirstName + (r.Employee.MiddleName == null ? "" : " " + r.Employee.MiddleName) + (r.Employee.LastName == null ? "" : " " + r.Employee.LastName),
@@ -50,11 +51,14 @@ public sealed class AttendanceRepository(ApplicationDbContext context) : IAttend
         WithinGeofence = r.CheckOutTime == null ? r.CheckInWithinGeofence : r.CheckOutWithinGeofence,
         Status = r.Status
     };
-    public Task<AttendanceResponse?> GetAsync(Guid id, CancellationToken ct) => History.Where(r => r.Id == id).Select(Projection).SingleOrDefaultAsync(ct);
+    public async Task<AttendanceResponse?> GetAsync(Guid id, CancellationToken ct) { var row = await History.Where(r => r.Id == id).Select(Projection).SingleOrDefaultAsync(ct); if (row is not null) await Enrich([row], ct); return row; }
+    private async Task Enrich(IReadOnlyList<AttendanceResponse> rows, CancellationToken ct) { var ids = rows.Select(r => r.AttendanceId).ToArray(); var evaluations = await context.AttendanceEvaluations.IgnoreQueryFilters().AsNoTracking().Where(e => ids.Contains(e.AttendanceRecordId)).Select(AttendanceEvaluationRepository.Projection).ToDictionaryAsync(e => e.AttendanceRecordId, ct); foreach (var row in rows) row.Evaluation = evaluations.GetValueOrDefault(row.AttendanceId); }
     public Task<Guid?> CompanyAsync(Guid id, CancellationToken ct) => History.Where(r => r.Id == id).Select(r => (Guid?)r.CompanyId).SingleOrDefaultAsync(ct);
     public async Task<IReadOnlyList<AttendanceResponse>> ListAsync(AttendanceQuery q, CancellationToken ct)
     {
         var query = History;
+        if (q.LateOnly) query = query.Where(r => context.AttendanceEvaluations.Any(e => e.AttendanceRecordId == r.Id && e.IsLate));
+        if (q.PenaltyOnly) query = query.Where(r => context.AttendanceEvaluations.Any(e => e.AttendanceRecordId == r.Id && e.PenaltyTriggered));
         if (q.CompanyId is { } company) query = query.Where(r => r.CompanyId == company);
         if (q.EmployeeId is { } employee) query = query.Where(r => r.EmployeeId == employee);
         if (q.BranchId is { } branch) query = query.Where(r => r.WorkLocation.BranchId == branch);
@@ -62,7 +66,7 @@ public sealed class AttendanceRepository(ApplicationDbContext context) : IAttend
         if (q.FromDate is { } from) query = query.Where(r => r.AttendanceDate >= from);
         if (q.ToDate is { } to) query = query.Where(r => r.AttendanceDate <= to);
         if (q.Status is { } status) query = query.Where(r => r.Status == status);
-        return await query.OrderByDescending(r => r.AttendanceDate).ThenBy(r => r.Id).Skip(q.Skip).Take(q.Take).Select(Projection).ToListAsync(ct);
+        var rows = await query.OrderByDescending(r => r.AttendanceDate).ThenBy(r => r.Id).Skip(q.Skip).Take(q.Take).Select(Projection).ToListAsync(ct); await Enrich(rows, ct); return rows;
     }
     public async Task<T> WriteAsync<T>(Guid employeeId, Func<Task<T>> action, CancellationToken ct) =>
         await context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>

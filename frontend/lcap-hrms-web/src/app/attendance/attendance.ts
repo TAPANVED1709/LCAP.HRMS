@@ -1,3 +1,9 @@
+import { RouterLink } from '@angular/router';
+import {
+  attendanceResult,
+  sequenceText,
+  evaluationNotice,
+} from '../attendance-policies/policy-model';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -7,7 +13,7 @@ import { tokenIdentity } from '../employees/employee-fields';
 import { AttendanceRow, Today, attendanceState, captureAndSubmit } from './attendance-model';
 @Component({
   selector: 'app-attendance',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './attendance.html',
   styleUrl: './attendance.scss',
 })
@@ -17,13 +23,21 @@ export class Attendance {
   identity = computed(() => tokenIdentity(this.session.token()));
   admin = computed(() => this.identity().roles.some((r) => r === 'HRAdmin' || r === 'SuperAdmin'));
   today = signal<Today | null>(null);
+  summary = signal<{ currentLateSequence: number; threshold: number; nextLateTriggersPenalty: boolean } | null>(null);
   rows = signal<AttendanceRow[]>([]);
   loading = signal(false);
   phase = signal('');
   error = signal('');
   success = signal('');
   state = attendanceState;
+  result = attendanceResult;
+  sequence = sequenceText;
+  notice = evaluationNotice;
   date = '';
+  fromDate = '';
+  toDate = '';
+  lateOnly = false;
+  penaltyOnly = false;
   branchId = '';
   employeeId = '';
   skip = 0;
@@ -39,6 +53,7 @@ export class Attendance {
       this.employees.set([]);
       this.skip = 0;
       this.date = '';
+      this.fromDate = ''; this.toDate = ''; this.lateOnly = false; this.penaltyOnly = false;
       this.branchId = '';
       this.employeeId = '';
       void this.reload();
@@ -49,11 +64,15 @@ export class Attendance {
     this.loading.set(true);
     this.error.set('');
     this.today.set(null);
+    this.summary.set(null);
     this.rows.set([]);
     try {
       if (this.identity().employeeId) {
         const r = await firstValueFrom(this.http.get<Envelope<Today>>('/api/attendance/me/today'));
         if (generation === this.generation) this.today.set(r.data);
+        const summary = await firstValueFrom(this.http.get<Envelope<{ currentLateSequence: number; threshold: number; nextLateTriggersPenalty: boolean }>>(
+          `/api/employees/${this.identity().employeeId}/late-summary`));
+        if (generation === this.generation) this.summary.set(summary.data);
       }
       if (this.admin()) {
         const branches = await firstValueFrom(
@@ -77,6 +96,12 @@ export class Attendance {
       }
       const params: Record<string, string | number> = { skip: this.skip, take: this.take };
       if (this.date) params['date'] = this.date;
+      if (this.fromDate) params['fromDate'] = this.fromDate;
+      if (this.toDate) params['toDate'] = this.toDate;
+      if (this.admin()) {
+        params['lateOnly'] = String(this.lateOnly);
+        params['penaltyOnly'] = String(this.penaltyOnly);
+      }
       if (this.admin() && this.branchId) params['branchId'] = this.branchId;
       if (this.admin() && this.employeeId.trim()) params['employeeId'] = this.employeeId.trim();
       const list = await firstValueFrom(

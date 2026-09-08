@@ -1,3 +1,4 @@
+import { EffectiveState } from '../regularisation/regularisation-model';
 import { RouterLink } from '@angular/router';
 import {
   attendanceResult,
@@ -23,7 +24,12 @@ export class Attendance {
   identity = computed(() => tokenIdentity(this.session.token()));
   admin = computed(() => this.identity().roles.some((r) => r === 'HRAdmin' || r === 'SuperAdmin'));
   today = signal<Today | null>(null);
-  summary = signal<{ currentLateSequence: number; threshold: number; nextLateTriggersPenalty: boolean } | null>(null);
+  effective = signal<EffectiveState | null>(null);
+  summary = signal<{
+    currentLateSequence: number;
+    threshold: number;
+    nextLateTriggersPenalty: boolean;
+  } | null>(null);
   rows = signal<AttendanceRow[]>([]);
   loading = signal(false);
   phase = signal('');
@@ -53,7 +59,10 @@ export class Attendance {
       this.employees.set([]);
       this.skip = 0;
       this.date = '';
-      this.fromDate = ''; this.toDate = ''; this.lateOnly = false; this.penaltyOnly = false;
+      this.fromDate = '';
+      this.toDate = '';
+      this.lateOnly = false;
+      this.penaltyOnly = false;
       this.branchId = '';
       this.employeeId = '';
       void this.reload();
@@ -64,14 +73,28 @@ export class Attendance {
     this.loading.set(true);
     this.error.set('');
     this.today.set(null);
+    this.effective.set(null);
     this.summary.set(null);
     this.rows.set([]);
     try {
       if (this.identity().employeeId) {
         const r = await firstValueFrom(this.http.get<Envelope<Today>>('/api/attendance/me/today'));
         if (generation === this.generation) this.today.set(r.data);
-        const summary = await firstValueFrom(this.http.get<Envelope<{ currentLateSequence: number; threshold: number; nextLateTriggersPenalty: boolean }>>(
-          `/api/employees/${this.identity().employeeId}/late-summary`));
+        const effective = await firstValueFrom(
+          this.http.get<Envelope<EffectiveState>>('/api/attendance/effective/me', {
+            params: { date: r.data.attendanceDate },
+          }),
+        );
+        if (generation === this.generation) this.effective.set(effective.data);
+        const summary = await firstValueFrom(
+          this.http.get<
+            Envelope<{
+              currentLateSequence: number;
+              threshold: number;
+              nextLateTriggersPenalty: boolean;
+            }>
+          >(`/api/employees/${this.identity().employeeId}/late-summary`),
+        );
         if (generation === this.generation) this.summary.set(summary.data);
       }
       if (this.admin()) {

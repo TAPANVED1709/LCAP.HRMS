@@ -1,0 +1,340 @@
+<nav class="links">
+  <a routerLink="/attendance">Attendance</a>
+  @if (identity().employeeId) {
+    <a routerLink="/attendance/regularisations">My requests</a
+    ><a routerLink="/attendance/regularisation/new">Request regularisation</a>
+  }
+  @if (manager()) {
+    <a routerLink="/manager/attendance-approvals">Manager inbox</a>
+  }
+  @if (hr()) {
+    <a routerLink="/attendance/regularisations/admin">HR register</a>
+  }
+</nav>
+<div class="heading">
+  <div>
+    <span class="eyebrow">ATTENDANCE / REGULARISATION</span>
+    <h1>
+      {{
+        mode === 'new'
+          ? 'Request regularisation'
+          : mode === 'team'
+            ? 'Attendance approvals'
+            : mode === 'admin'
+              ? 'Regularisation register'
+              : 'My regularisation requests'
+      }}
+    </h1>
+    <p>Corrections preserve the original attendance evidence.</p>
+  </div>
+  @if (mode !== 'new' && allowed()) {
+    <button (click)="load()" [disabled]="loading() || busy()">Refresh</button>
+  }
+</div>
+@if (!allowed()) {
+  <div class="message error" role="alert">
+    Your account does not have access to this screen. Connect an eligible account through Profile →
+    API connection.
+  </div>
+}
+@if (error() && !selected()) {
+  <div class="message error" role="alert">{{ error() }}</div>
+}
+@if (success()) {
+  <div class="message success" role="status">{{ success() }}</div>
+}
+@if (loading()) {
+  <p role="status">Loading regularisation data…</p>
+}
+@if (allowed()) {
+  @if (mode === 'new') {
+    <form class="card" (ngSubmit)="submit()" novalidate>
+      <h2>Attendance and proposed change</h2>
+      <div class="form-grid">
+        <label
+          >Attendance date<input
+            type="date"
+            name="date"
+            [(ngModel)]="date"
+            (change)="original()"
+            required
+            [disabled]="busy()"
+        /></label>
+        <label
+          >Request type<select
+            name="type"
+            [(ngModel)]="type"
+            (change)="changeType()"
+            [disabled]="busy()"
+          >
+            @for (t of types; track $index) {
+              @if ($index) {
+                <option [value]="$index">{{ t }}</option>
+              }
+            }
+          </select></label
+        >
+      </div>
+      <button type="button" (click)="original()" [disabled]="loading() || busy() || !date">
+        Load original attendance
+      </button>
+      @if (preview(); as p) {
+        <div class="snapshot">
+          <strong>Times in {{ p.timeZoneId }}</strong>
+          <p>
+            Original check-in: {{ format(p.originalCheckInTime, p.timeZoneId) }}<br />Original
+            check-out: {{ format(p.originalCheckOutTime, p.timeZoneId) }}
+          </p>
+          @if (p.source === 2) {
+            <p>
+              Current effective check-in: {{ format(p.effectiveCheckInTime, p.timeZoneId)
+              }}<br />Current effective check-out:
+              {{ format(p.effectiveCheckOutTime, p.timeZoneId) }}
+            </p>
+          }
+        </div>
+      }
+      <div class="form-grid">
+        @if (fields(+type).checkIn) {
+          <label
+            >Requested check-in<input
+              type="datetime-local"
+              step="1"
+              name="checkIn"
+              [(ngModel)]="checkIn"
+              [disabled]="busy()"
+          /></label>
+        }
+        @if (fields(+type).checkOut) {
+          <label
+            >Requested check-out<input
+              type="datetime-local"
+              step="1"
+              name="checkOut"
+              [(ngModel)]="checkOut"
+              [disabled]="busy()"
+          /></label>
+        }
+      </div>
+      <p class="muted">
+        Use the displayed attendance timezone. For an overnight checkout, select the following
+        calendar date.
+      </p>
+      <label
+        >Reason <span aria-hidden="true">*</span
+        ><textarea
+          name="reason"
+          rows="3"
+          maxlength="2000"
+          [(ngModel)]="reason"
+          [disabled]="busy()"
+          required
+        ></textarea>
+      </label>
+      <label
+        >Supporting note<textarea
+          name="note"
+          rows="2"
+          maxlength="2000"
+          [(ngModel)]="note"
+          [disabled]="busy()"
+        ></textarea>
+      </label>
+      <button class="primary" type="submit" [disabled]="busy() || loading()">
+        {{ busy() ? 'Submitting…' : 'Submit request' }}
+      </button>
+    </form>
+  } @else {
+    <form class="filters" (ngSubmit)="filter()">
+      <label
+        >Status<select name="status" [(ngModel)]="status">
+          <option value="">All statuses</option>
+          @for (s of statuses; track $index) {
+            @if ($index) {
+              <option [value]="$index">{{ s }}</option>
+            }
+          }
+        </select></label
+      ><label>From date<input type="date" name="fromDate" [(ngModel)]="fromDate" /></label
+      ><label>To date<input type="date" name="toDate" [(ngModel)]="toDate" /></label>
+      @if (mode === 'team') {
+        <label
+          >Employee<select name="teamEmployee" [(ngModel)]="employeeId">
+            <option value="">All assigned employees</option>
+            @for (e of employees(); track e.id) {
+              <option [value]="e.id">{{ e.employeeCode }} · {{ e.fullName }}</option>
+            }
+          </select></label
+        >
+      }
+      @if (mode === 'admin') {
+        <label
+          >Branch<select name="branch" [(ngModel)]="branchId">
+            <option value="">All branches</option>
+            @for (b of branches(); track b.id) {
+              <option [value]="b.id">{{ b.branchName }}</option>
+            }
+          </select></label
+        ><label
+          >Employee<select name="employee" [(ngModel)]="employeeId">
+            <option value="">All employees</option>
+            @for (e of employees(); track e.id) {
+              <option [value]="e.id">{{ e.employeeCode }} · {{ e.fullName }}</option>
+            }
+          </select></label
+        ><label
+          >Manager<select name="manager" [(ngModel)]="managerId">
+            <option value="">All managers</option>
+            @for (e of employees(); track e.id) {
+              <option [value]="e.id">{{ e.employeeCode }} · {{ e.fullName }}</option>
+            }
+          </select></label
+        >
+      }
+      <button [disabled]="loading() || busy()">Apply filters</button>
+    </form>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Date</th>
+            <th>Request type</th>
+            <th>Original</th>
+            <th>Requested</th>
+            <th>Manager</th>
+            <th>Status</th>
+            <th>Submitted / Reviewed (UTC)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows(); track r.id) {
+            <tr>
+              <td>{{ r.employeeCode }}<br />{{ r.employeeName }}</td>
+              <td>{{ r.attendanceDate }}</td>
+              <td>{{ types[r.requestType] }}</td>
+              <td>
+                {{ format(r.originalCheckInTime, r.timeZoneId) }}<br />{{
+                  format(r.originalCheckOutTime, r.timeZoneId)
+                }}
+              </td>
+              <td>
+                {{ format(r.requestedCheckInTime, r.timeZoneId) }}<br />{{
+                  format(r.requestedCheckOutTime, r.timeZoneId)
+                }}
+              </td>
+              <td>{{ r.managerName }}</td>
+              <td>
+                <span
+                  class="badge"
+                  [class.applied]="r.status === 7"
+                  [class.rejected]="r.status === 5"
+                  >{{ statuses[r.status] }}</span
+                >
+                @if (r.policyImpactReviewRequired) {
+                  <small>Policy impact review required</small>
+                }
+              </td>
+              <td>{{ format(r.submittedAt) }}<br />{{ format(r.reviewedAt) }}</td>
+              <td>
+                <button (click)="view(r)">View</button>
+                @if (mode === 'me' && canCancel(r.status)) {
+                  <button (click)="review(r, 'cancel')" [disabled]="busy()">Cancel</button>
+                }
+                @if (mode === 'team' && r.status === 3) {
+                  <button class="primary" (click)="review(r, 'approve')" [disabled]="busy()">
+                    Approve</button
+                  ><button (click)="review(r, 'reject')" [disabled]="busy()">Reject</button>
+                }
+              </td>
+            </tr>
+          }
+          @if (!loading() && !rows().length) {
+            <tr>
+              <td colspan="9">No requests to display.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="paging">
+      <button (click)="page(-1)" [disabled]="!skip || loading() || busy()">Previous</button
+      ><span>Page {{ skip / 50 + 1 }}</span
+      ><button (click)="page(1)" [disabled]="rows().length < 50 || loading() || busy()">
+        Next
+      </button>
+    </div>
+  }
+  @if (selected(); as r) {
+    <dialog open class="card review" aria-modal="true" aria-labelledby="review-title">
+      @if (error()) {<div class="message error" role="alert">{{ error() }}</div>}
+      <h2 id="review-title">
+        {{
+          action
+            ? action === 'approve'
+              ? 'Approve request'
+              : action === 'reject'
+                ? 'Reject request'
+                : 'Cancel request'
+            : 'Request details'
+        }}
+      </h2>
+      <p>{{ r.employeeCode }} · {{ r.employeeName }} · {{ r.attendanceDate }}</p>
+      <p>
+        <strong>{{ types[r.requestType] }} — {{ statuses[r.status] }}</strong>
+      </p>
+      <p>Assigned manager: {{ r.managerName }}<br />Submitted: {{ format(r.submittedAt) }} (UTC)</p>
+      <p>
+        Original: {{ format(r.originalCheckInTime, r.timeZoneId) }} →
+        {{ format(r.originalCheckOutTime, r.timeZoneId) }}<br />Requested:
+        {{ format(r.requestedCheckInTime, r.timeZoneId) }} →
+        {{ format(r.requestedCheckOutTime, r.timeZoneId) }}
+      </p>
+      <p>Reason: {{ r.employeeReason }}</p>
+      @if (r.supportingNote) {
+        <p>Supporting note: {{ r.supportingNote }}</p>
+      }
+      @if (r.reviewerRemarks) {
+        <p>Review remarks: {{ r.reviewerRemarks }}</p>
+      }
+      @if (r.cancellationReason) {
+        <p>Cancellation reason: {{ r.cancellationReason }}</p>
+      }
+      @if (r.policyImpactReviewRequired) {
+        <p class="message">
+          Policy impact review required. Original penalty events remain preserved.
+        </p>
+      }
+      @if (action) {
+        <label
+          >{{
+            action === 'approve'
+              ? 'Review remarks (optional)'
+              : action === 'reject'
+                ? 'Rejection remarks (required)'
+                : 'Cancellation reason (required)'
+          }}<textarea
+            name="remarks"
+            maxlength="2000"
+            rows="3"
+            [(ngModel)]="remarks"
+            [disabled]="busy()"
+          ></textarea></label
+        ><button class="primary" (click)="confirm()" [disabled]="busy()">
+          {{ busy() ? 'Saving…' : 'Confirm ' + action }}
+        </button>
+      } @else {
+        @for (a of audit(); track $index) {
+          <p class="audit">
+            {{ format(a.occurredAt) }} UTC · {{ a.action }}
+            @if (a.reason) {
+              — {{ a.reason }}
+            }
+          </p>
+        }
+      }
+      <button (click)="selected.set(null); action = ''" [disabled]="busy()">Close</button>
+    </dialog>
+  }
+}

@@ -12,21 +12,18 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LCAP.HRMS.Infrastructure;
-
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
+        var connectionString = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(configuration.GetSection("Attendance").Get<LCAP.HRMS.Application.Attendance.AttendanceOptions>() ?? new());
         services.AddScoped<LCAP.HRMS.Application.Attendance.IAttendanceRepository, AttendanceRepository>();
-        services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString,
-            sql => sql.EnableRetryOnFailure()));
+        services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
         services.AddScoped<LCAP.HRMS.Application.AttendancePolicies.IAttendancePolicyRepository, AttendancePolicyRepository>();
         services.AddScoped<LCAP.HRMS.Application.AttendancePolicies.IAttendanceEvaluationRepository, AttendanceEvaluationRepository>();
+        services.AddScoped<LCAP.HRMS.Application.Regularisation.IRegularisationRepository, RegularisationRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped(typeof(IBaseRepository<>), typeof(GenericRepository<>));
         services.AddScoped<LCAP.HRMS.Application.Employees.IEmployeeRepository, EmployeeRepository>();

@@ -1,5 +1,14 @@
 import { Routes } from '@angular/router';
 export const routes: Routes = [
+  ...[
+    'attendance/regularisation/new',
+    'attendance/regularisations/admin',
+    'attendance/regularisations',
+    'manager/attendance-approvals',
+  ].map((path) => ({
+    path,
+    loadComponent: () => import('./regularisation/regularisations').then((m) => m.Regularisations),
+  })),
   {
     path: 'attendance/policies',
     loadComponent: () => import('./attendance-policies/policies').then((m) => m.Policies),

@@ -1,3 +1,15 @@
+<nav class="filters">
+  @if (identity().employeeId) {
+    <a routerLink="/attendance/regularisation/new">Request Regularisation</a
+    ><a routerLink="/attendance/regularisations">My requests</a>
+  }
+  @if (identity().roles.includes('Manager')) {
+    <a routerLink="/manager/attendance-approvals">Manager inbox</a>
+  }
+  @if (admin()) {
+    <a routerLink="/attendance/regularisations/admin">Regularisation register</a>
+  }
+</nav>
 @if (admin()) {
   <nav class="filters">
     <a routerLink="/attendance/policies">Attendance policies</a
@@ -40,7 +52,7 @@
     }
     @if (day.record?.evaluation; as e) {
       <div class="evaluation">
-        <h3>Attendance: {{ result(e) }}</h3>
+        <h3>Raw check-in evaluation: {{ result(e) }}</h3>
         @if (e.isEvaluated) {
           <p>Grace period: {{ e.gracePeriodMinutes }} minutes</p>
           @if (e.isLate) {
@@ -58,13 +70,42 @@
     @if (summary(); as current) {
       <p>Current late sequence: {{ current.currentLateSequence }} of {{ current.threshold }}</p>
       @if (current.nextLateTriggersPenalty) {
-        <p class="message success" role="status">Your next qualifying late attendance may trigger a payroll-impact event under the configured attendance policy.</p>
+        <p class="message success" role="status">
+          Your next qualifying late attendance may trigger a payroll-impact event under the
+          configured attendance policy.
+        </p>
+      }
+    }
+    @if (effective(); as corrected) {
+      @if (corrected.correctionId) {
+        <div class="evaluation">
+          <h3>Effective attendance · Regularised</h3>
+          <p>
+            Check-in: {{ time(corrected.effectiveCheckInTime, corrected.timeZoneId) }} · Check-out:
+            {{ time(corrected.effectiveCheckOutTime, corrected.timeZoneId) }}
+          </p>
+          <p>
+            {{
+              corrected.evaluation?.isEvaluated
+                ? corrected.evaluation?.isLate
+                  ? 'Late'
+                  : 'Present'
+                : 'Not evaluated'
+            }}
+            · Evaluation version {{ corrected.evaluation?.evaluationVersion }}
+          </p>
+          @if (corrected.policyImpactReviewRequired) {
+            <p class="message">
+              Policy impact review required. Original penalty events are preserved.
+            </p>
+          }
+        </div>
       }
     }
     <p class="muted">
       Times shown in {{ day.timeZoneId }}. Location is requested only when you mark attendance.
     </p>
-    @if (!day.record?.checkOutTime) {
+    @if (!day.record?.checkOutTime && !effective()?.correctionId) {
       <button
         class="primary"
         [disabled]="!!phase() || loading()"
@@ -121,7 +162,8 @@
           <th>Check-out</th>
           <th>Shift</th>
           <th>Status</th>
-          <th>Attendance result</th>
+          <th>Raw evaluation</th>
+          <th>Effective attendance</th>
           <th>Late minutes</th>
           <th>Late sequence</th>
           <th>Penalty event</th>
@@ -143,6 +185,22 @@
               <span class="status-pill">{{ state(r) }}</span>
             </td>
             <td>{{ result(r.evaluation) }}</td>
+            <td>
+              @if (r.effective; as e) {
+                <strong>{{ e.source === 2 ? 'Regularised' : 'Raw' }}</strong
+                ><br />{{ time(e.effectiveCheckInTime, r.timeZoneId) }} →
+                {{ time(e.effectiveCheckOutTime, r.timeZoneId) }}<br />{{
+                  e.evaluation?.isEvaluated
+                    ? e.evaluation?.isLate
+                      ? 'Late'
+                      : 'Present'
+                    : 'Not evaluated'
+                }}
+                @if (e.policyImpactReviewRequired) {
+                  <small>Policy impact review required</small>
+                }
+              }
+            </td>
             <td>{{ r.evaluation?.isEvaluated ? r.evaluation?.lateMinutes : '—' }}</td>
             <td>{{ r.evaluation?.isEvaluated ? sequence(r.evaluation!) : '—' }}</td>
             <td>{{ r.evaluation?.penaltyTriggered ? 'Generated' : '—' }}</td>
@@ -155,7 +213,7 @@
         }
         @if (!loading() && !rows().length) {
           <tr>
-            <td colspan="14">No attendance records to display.</td>
+            <td colspan="15">No attendance records to display.</td>
           </tr>
         }
       </tbody>

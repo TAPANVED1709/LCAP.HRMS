@@ -1,8 +1,8 @@
 using LCAP.HRMS.Domain.Attendance;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-namespace LCAP.HRMS.Infrastructure.Persistence.Configurations;
 
+namespace LCAP.HRMS.Infrastructure.Persistence.Configurations;
 public sealed class AttendanceRecordConfiguration : IEntityTypeConfiguration<AttendanceRecord>
 {
     public void Configure(EntityTypeBuilder<AttendanceRecord> b)
@@ -36,7 +36,8 @@ public sealed class AttendanceRecordConfiguration : IEntityTypeConfiguration<Att
         b.Property(x => x.CheckOutDistanceMeters).HasPrecision(14, 3);
         // Deleted attendance still reserves its date; there is no attendance deletion API.
         b.HasIndex(x => new { x.EmployeeId, x.AttendanceDate }).IsUnique().HasDatabaseName("UX_AttendanceRecords_EmployeeId_AttendanceDate");
-        b.HasIndex(x => x.EmployeeId).IsUnique().HasFilter("[IsDeleted] = 0 AND [CheckOutTime] IS NULL").HasDatabaseName("UX_AttendanceRecords_EmployeeId_Open");
+        // A corrected checkout keeps raw CheckOutTime null. The per-employee SQL lock enforces one effective open record.
+        b.HasIndex(x => x.EmployeeId).HasFilter("[IsDeleted] = 0 AND [CheckOutTime] IS NULL").HasDatabaseName("IX_AttendanceRecords_EmployeeId_RawOpen");
         b.HasIndex(x => new { x.CompanyId, x.AttendanceDate });
         b.HasIndex(x => new { x.WorkLocationId, x.AttendanceDate });
         b.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);

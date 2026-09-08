@@ -1,5 +1,7 @@
+import { EffectiveState } from '../regularisation/regularisation-model';
 import type { Evaluation } from '../attendance-policies/policy-model';
 export interface AttendanceRow {
+  effective?: EffectiveState;
   evaluation?: Evaluation | null;
   shiftName?: string;
   attendanceId: string;

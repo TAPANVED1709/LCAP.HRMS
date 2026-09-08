@@ -2,23 +2,31 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using LCAP.HRMS.Domain.Attendance;
 using LCAP.HRMS.Domain.Enums;
-namespace LCAP.HRMS.Application.Attendance;
 
+namespace LCAP.HRMS.Application.Attendance;
 public abstract class AttendancePositionRequest
 {
-    [Required, Range(typeof(decimal), "-90", "90")] public decimal? Latitude { get; set; }
-    [Required, Range(typeof(decimal), "-180", "180")] public decimal? Longitude { get; set; }
-    [Required, Range(typeof(decimal), "0.001", "999999999")] public decimal? AccuracyMeters { get; set; }
-    [MaxLength(200)] public string? DeviceIdentifier { get; set; }
+    [Required, Range(typeof(decimal), "-90", "90")]
+    public decimal? Latitude { get; set; }
+
+    [Required, Range(typeof(decimal), "-180", "180")]
+    public decimal? Longitude { get; set; }
+
+    [Required, Range(typeof(decimal), "0.001", "999999999")]
+    public decimal? AccuracyMeters { get; set; }
+
+    [MaxLength(200)]
+    public string? DeviceIdentifier { get; set; }
     public DateTimeOffset? ClientTimestamp { get; set; }
 }
+
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class AttendanceCheckInRequest : AttendancePositionRequest;
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class AttendanceCheckOutRequest : AttendancePositionRequest;
-
 public sealed class AttendanceResponse
 {
+    public LCAP.HRMS.Application.Regularisation.EffectiveAttendance? Effective { get; set; }
     public LCAP.HRMS.Application.AttendancePolicies.EvaluationResponse? Evaluation { get; set; }
     public string ShiftName { get; set; } = "";
     public Guid AttendanceId { get; set; }
@@ -35,10 +43,9 @@ public sealed class AttendanceResponse
     public bool? WithinGeofence { get; set; }
     public AttendanceStatus Status { get; set; }
 }
-public sealed record AttendanceTodayResponse(DateOnly AttendanceDate, string TimeZoneId, AttendanceResponse? Record);
-public sealed record AttendanceQuery(DateOnly? Date = null, DateOnly? FromDate = null, DateOnly? ToDate = null,
-    Guid? EmployeeId = null, Guid? BranchId = null, AttendanceStatus? Status = null, int Skip = 0, int Take = 100, Guid? CompanyId = null, bool LateOnly = false, bool PenaltyOnly = false);
 
+public sealed record AttendanceTodayResponse(DateOnly AttendanceDate, string TimeZoneId, AttendanceResponse? Record);
+public sealed record AttendanceQuery(DateOnly? Date = null, DateOnly? FromDate = null, DateOnly? ToDate = null, Guid? EmployeeId = null, Guid? BranchId = null, AttendanceStatus? Status = null, int Skip = 0, int Take = 100, Guid? CompanyId = null, bool LateOnly = false, bool PenaltyOnly = false);
 // Attendance queries deliberately avoid loading statutory, bank and contact details.
 public sealed class AttendanceEmployee
 {

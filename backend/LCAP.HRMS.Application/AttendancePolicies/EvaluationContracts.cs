@@ -1,7 +1,7 @@
 using LCAP.HRMS.Domain.Attendance;
 using LCAP.HRMS.Domain.AttendancePolicies;
-namespace LCAP.HRMS.Application.AttendancePolicies;
 
+namespace LCAP.HRMS.Application.AttendancePolicies;
 public sealed record EvaluationInput(AttendanceRecord Record, TimeOnly ShiftStart, string ShiftName);
 public sealed record EvaluationQuery(Guid? CompanyId = null, Guid? EmployeeId = null, Guid? BranchId = null, DateOnly? FromDate = null, DateOnly? ToDate = null, bool LateOnly = false, bool PenaltyOnly = false, int Skip = 0, int Take = 100);
 public sealed class EvaluationResponse
@@ -10,9 +10,13 @@ public sealed class EvaluationResponse
     public Guid AttendanceRecordId { get; set; }
     public Guid EmployeeId { get; set; }
     public Guid? ReportingManagerId { get; set; }
-    public string EmployeeCode { get; set; } = ""; public string EmployeeName { get; set; } = ""; public string Branch { get; set; } = ""; public string ShiftName { get; set; } = "";
+    public string EmployeeCode { get; set; } = "";
+    public string EmployeeName { get; set; } = "";
+    public string Branch { get; set; } = "";
+    public string ShiftName { get; set; } = "";
     public DateOnly AttendanceDate { get; set; }
-    public string TimeZoneId { get; set; } = "UTC"; public DateTimeOffset? CheckInTime { get; set; }
+    public string TimeZoneId { get; set; } = "UTC";
+    public DateTimeOffset? CheckInTime { get; set; }
     public DateTimeOffset? CheckOutTime { get; set; }
     public Guid? AttendancePolicyId { get; set; }
     public string? PolicyCode { get; set; }
@@ -31,21 +35,27 @@ public sealed class EvaluationResponse
     public string? ReasonCode { get; set; }
     public DateTimeOffset EvaluatedAt { get; set; }
 }
+
 public sealed class PenaltyResponse
 {
+    public bool PolicyImpactReviewRequired { get; set; }
     public Guid CompanyId { get; set; }
     public Guid Id { get; set; }
     public Guid EmployeeId { get; set; }
     public Guid AttendanceRecordId { get; set; }
     public Guid AttendanceEvaluationId { get; set; }
     public Guid AttendancePolicyId { get; set; }
-    public string EmployeeCode { get; set; } = ""; public string EmployeeName { get; set; } = ""; public DateOnly PenaltyDate { get; set; }
+    public string EmployeeCode { get; set; } = "";
+    public string EmployeeName { get; set; } = "";
+    public DateOnly PenaltyDate { get; set; }
     public int LateMinutes { get; set; }
     public int ConsecutiveLateCount { get; set; }
     public PenaltyType PenaltyType { get; set; }
-    public string ReasonCode { get; set; } = ""; public PenaltyEventStatus Status { get; set; }
+    public string ReasonCode { get; set; } = "";
+    public PenaltyEventStatus Status { get; set; }
     public DateTimeOffset GeneratedAt { get; set; }
 }
+
 public sealed record LateSummary(Guid EmployeeId, int CurrentLateSequence, int Threshold, bool ThresholdReached, bool NextLateTriggersPenalty, PenaltyResponse? LatestPenaltyEvent);
 public interface IAttendanceEvaluationService
 {
@@ -57,6 +67,7 @@ public interface IAttendanceEvaluationService
     Task<IReadOnlyList<PenaltyResponse>> PenaltiesAsync(EvaluationQuery query, CancellationToken ct);
     Task<PenaltyResponse> PenaltyAsync(Guid id, CancellationToken ct);
 }
+
 public interface IAttendanceEvaluationRepository
 {
     Task<EvaluationInput?> InputAsync(Guid attendanceId, CancellationToken ct);
@@ -71,4 +82,3 @@ public interface IAttendanceEvaluationRepository
     Task<PenaltyResponse?> PenaltyAsync(Guid id, CancellationToken ct);
     Task<Guid?> EmployeeCompanyAsync(Guid employeeId, CancellationToken ct);
 }
-

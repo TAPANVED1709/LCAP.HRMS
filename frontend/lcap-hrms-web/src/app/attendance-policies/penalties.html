@@ -50,6 +50,9 @@
               <td>Qualifying late occurrence</td>
               <td>
                 {{ r['status'] === 1 ? 'Pending' : r['status'] === 2 ? 'Consumed' : 'Cancelled' }}
+                @if (r['policyImpactReviewRequired']) {
+                  <small>Policy impact review required</small>
+                }
               </td>
               <td>{{ r['generatedAt'] }}</td>
             </tr>
